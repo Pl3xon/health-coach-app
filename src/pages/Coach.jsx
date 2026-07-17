@@ -1,22 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Bot, User, Sparkles, Image, Video } from 'lucide-react'
+import { Send, Bot, User, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { api } from '../services/api'
 
 export default function Coach() {
   const [messages, setMessages] = useState([
     {
       id: 1,
       role: 'assistant',
-      content: `Hallo! 👋 Ich bin dein **VitalCoach** - dein persönlicher KI-Gesundheitsberater.
+      content: `Hallo! Ich bin dein **VitalCoach** - dein persönlicher KI-Gesundheitsberater.
 
 Ich kann dir helfen mit:
-- 📊 **Analyse deiner Vitaldaten** (Renpho, Google Fit)
-- 🍎 **Ernährungsplänen** basierend auf deinen Zielen
-- 💪 **Home-Workouts** mit Übungsdemonstrationen
-- 🎯 **Fortschritts-Tracking** und Motivation
+- **Analyse deiner Vitaldaten** (Renpho, Google Fit)
+- **Ernährungsplänen** basierend auf deinen Zielen
+- **Home-Workouts** mit Übungsdemonstrationen
+- **Fortschritts-Tracking** und Motivation
 
-Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
+Stell mir einfach eine Frage!`
     }
   ])
   const [input, setInput] = useState('')
@@ -34,37 +35,24 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
-    const userMessage = {
-      id: Date.now(),
-      role: 'user',
-      content: input
-    }
-
+    const userMessage = { id: Date.now(), role: 'user', content: input }
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input })
-      })
-
-      const data = await response.json()
-
+      const data = await api.sendMessage(input)
       const assistantMessage = {
         id: Date.now() + 1,
         role: 'assistant',
         content: data.response || 'Entschuldigung, ich konnte keine Antwort generieren.'
       }
-
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       const errorMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.'
+        content: `Es ist ein Fehler aufgetreten: ${error.message}. Bitte versuche es erneut.`
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -81,7 +69,6 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
       <div className="p-4 lg:p-6 border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
@@ -97,7 +84,6 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
         <AnimatePresence>
           {messages.map((message) => (
@@ -106,19 +92,14 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className={`flex gap-3 ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center flex-shrink-0">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
               )}
-              
-              <div className={`max-w-[80%] ${
-                message.role === 'user' ? 'chat-bubble-user' : 'chat-bubble'
-              }`}>
+              <div className={`max-w-[80%] ${message.role === 'user' ? 'chat-bubble-user' : 'chat-bubble'}`}>
                 {message.role === 'assistant' ? (
                   <div className="markdown-content text-sm leading-relaxed">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -127,7 +108,6 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
                   <p className="text-sm">{message.content}</p>
                 )}
               </div>
-
               {message.role === 'user' && (
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                   <User className="w-4 h-4 text-white" />
@@ -138,11 +118,7 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
         </AnimatePresence>
 
         {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex gap-3"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Bot className="w-4 h-4 text-white" />
             </div>
@@ -155,11 +131,9 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
             </div>
           </motion.div>
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Questions */}
       {messages.length <= 1 && (
         <div className="px-4 lg:px-6 pb-4">
           <div className="flex flex-wrap gap-2">
@@ -176,7 +150,6 @@ Stell mir einfach eine Frage oder sag mir, womit ich dir helfen kann!`
         </div>
       )}
 
-      {/* Input */}
       <div className="p-4 lg:p-6 border-t border-white/5">
         <div className="flex gap-3">
           <input

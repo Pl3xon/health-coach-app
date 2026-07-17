@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, Save, Target, Ruler, Scale, Calendar, Activity } from 'lucide-react'
+import { api } from '../services/api'
 
 const container = {
   hidden: { opacity: 0 },
@@ -37,11 +38,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
-      })
+      await api.updateProfile(profile)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (error) {
