@@ -45,7 +45,7 @@ Antworte strukturiert mit:
             full_message = f"{context}\n[Nachricht des Nutzers]: {message}"
             
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 contents=full_message,
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt
@@ -75,7 +75,7 @@ Antworte strukturiert mit:
             Format als Markdown mit Tabellen wo möglich."""
             
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt
@@ -109,7 +109,7 @@ Antworte strukturiert mit:
             Format als Markdown mit klaren Überschriften für jeden Trainingstag."""
             
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt
@@ -135,7 +135,7 @@ Antworte strukturiert mit:
             Sei spezifisch und datenbasiert."""
             
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt
