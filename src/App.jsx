@@ -1,0 +1,150 @@
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  LayoutDashboard, MessageCircle, UtensilsCrossed, 
+  Dumbbell, Activity, Settings, Menu, X, Heart,
+  TrendingUp, User
+} from 'lucide-react'
+
+import Dashboard from './pages/Dashboard'
+import Coach from './pages/Coach'
+import Nutrition from './pages/Nutrition'
+import Workout from './pages/Workout'
+import Vitals from './pages/Vitals'
+import Profile from './pages/Profile'
+
+const navItems = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/coach', icon: MessageCircle, label: 'AI Coach' },
+  { path: '/nutrition', icon: UtensilsCrossed, label: 'Ernährung' },
+  { path: '/workout', icon: Dumbbell, label: 'Workout' },
+  { path: '/vitals', icon: Activity, label: 'Vitaldaten' },
+  { path: '/profile', icon: User, label: 'Profil' },
+]
+
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 1500)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ 
+              scale: [1, 1.1, 1],
+              rotate: [0, 5, -5, 0]
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center"
+          >
+            <Heart className="w-10 h-10 text-white" />
+          </motion.div>
+          <h1 className="text-3xl font-bold gradient-text mb-2">VitalCoach</h1>
+          <p className="text-gray-400">Dein Gesundheits-Cockpit wird geladen...</p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return (
+    <Router>
+      <div className="min-h-screen flex">
+        {/* Mobile menu button */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 glass-card"
+        >
+          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        {/* Sidebar */}
+        <motion.aside
+          initial={{ x: -280 }}
+          animate={{ x: sidebarOpen ? 0 : -280 }}
+          className={`sidebar fixed lg:static w-[280px] h-screen z-40 flex flex-col ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          } transition-transform duration-300`}
+        >
+          {/* Logo */}
+          <div className="p-6 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+                <Heart className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold gradient-text">VitalCoach</h1>
+                <p className="text-xs text-gray-500">Gesundheits-Cockpit</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30' 
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`
+                }
+              >
+                <item.icon size={20} />
+                <span className="font-medium">{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Status */}
+          <div className="p-4 border-t border-white/5">
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                <span className="text-sm text-gray-400">System Status</span>
+              </div>
+              <p className="text-xs text-gray-500">Alle APIs verbunden</p>
+            </div>
+          </div>
+        </motion.aside>
+
+        {/* Overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 min-h-screen">
+          <AnimatePresence mode="wait">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/coach" element={<Coach />} />
+              <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/workout" element={<Workout />} />
+              <Route path="/vitals" element={<Vitals />} />
+              <Route path="/profile" element={<Profile />} />
+            </Routes>
+          </AnimatePresence>
+        </main>
+      </div>
+    </Router>
+  )
+}
+
+export default App
