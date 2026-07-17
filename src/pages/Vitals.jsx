@@ -14,30 +14,23 @@ const item = {
   show: { y: 0, opacity: 1 }
 }
 
-const mockWeightData = [
-  { date: 'Mo', weight: 83.2 }, { date: 'Di', weight: 83.0 }, { date: 'Mi', weight: 82.8 },
-  { date: 'Do', weight: 82.9 }, { date: 'Fr', weight: 82.5 }, { date: 'Sa', weight: 82.3 }, { date: 'So', weight: 82.5 },
-]
-
-const mockBodyFatData = [
-  { date: 'Mo', fat: 25.2 }, { date: 'Di', fat: 25.1 }, { date: 'Mi', fat: 25.0 },
-  { date: 'Do', fat: 24.9 }, { date: 'Fr', fat: 24.8 }, { date: 'Sa', fat: 24.7 }, { date: 'So', fat: 24.8 },
-]
-
 export default function Vitals() {
   const [renphoConnected, setRenphoConnected] = useState(false)
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [renphoData, setRenphoData] = useState(null)
 
   const checkConnections = async () => {
     setLoading(true)
     try {
-      const [renphoRes, fitRes] = await Promise.all([
+      const [renphoRes, fitRes, renphoLatest] = await Promise.all([
         api.getRenphoStatus(),
-        api.healthCheck()
+        api.healthCheck(),
+        api.getRenphoLatest()
       ])
       setRenphoConnected(renphoRes.connected)
       setGoogleFitConnected(fitRes.google_fit || false)
+      if (renphoLatest.measurement) setRenphoData(renphoLatest.measurement)
     } catch (error) {
       console.error('Error checking connections:', error)
     } finally {
@@ -47,13 +40,15 @@ export default function Vitals() {
 
   useEffect(() => { checkConnections() }, [])
 
+  const r = renphoData || {}
+
   const bodyComposition = [
-    { label: 'Gewicht', value: '82.5 kg', icon: Scale, color: 'text-cyan-400', change: '-1.2 kg', trend: 'down' },
-    { label: 'Körperfett', value: '24.8%', icon: Droplets, color: 'text-purple-400', change: '-0.5%', trend: 'down' },
-    { label: 'Muskelmasse', value: '38.2 kg', icon: Zap, color: 'text-green-400', change: '+0.3 kg', trend: 'up' },
-    { label: 'BMI', value: '25.5', icon: Activity, color: 'text-orange-400', change: '-0.4', trend: 'down' },
-    { label: 'BMR', value: '1,785 kcal', icon: Flame, color: 'text-red-400', change: '+12', trend: 'up' },
-    { label: 'Herzfrequenz', value: '72 bpm', icon: Heart, color: 'text-pink-400', change: '-2', trend: 'down' },
+    { label: 'Gewicht', value: r.weight ? `${r.weight} kg` : '—', icon: Scale, color: 'text-cyan-400' },
+    { label: 'Körperfett', value: r.bodyFat ? `${r.bodyFat}%` : '—', icon: Droplets, color: 'text-purple-400' },
+    { label: 'Muskelmasse', value: r.muscleMass ? `${r.muscleMass} kg` : '—', icon: Zap, color: 'text-green-400' },
+    { label: 'BMI', value: r.bmi ? String(r.bmi) : '—', icon: Activity, color: 'text-orange-400' },
+    { label: 'BMR', value: r.bmr ? `${r.bmr} kcal` : '—', icon: Flame, color: 'text-red-400' },
+    { label: 'Herzfrequenz', value: r.heartRate && r.heartRate > 0 ? `${r.heartRate} bpm` : '—', icon: Heart, color: 'text-pink-400' },
   ]
 
   return (
@@ -102,47 +97,16 @@ export default function Vitals() {
               <metric.icon className={`w-8 h-8 ${metric.color} mx-auto mb-2`} />
               <p className="text-sm text-gray-400 mb-1">{metric.label}</p>
               <p className="text-lg font-bold">{metric.value}</p>
-              <div className={`flex items-center justify-center gap-1 text-xs mt-1 ${metric.trend === 'down' ? 'text-green-400' : 'text-cyan-400'}`}>
-                {metric.trend === 'down' ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-                {metric.change}
-              </div>
             </motion.div>
           ))}
         </div>
       </motion.div>
 
-      <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><Scale className="w-5 h-5 text-cyan-400" />Gewichtsverlauf</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockWeightData}>
-                <defs><linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3}/><stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" domain={['auto', 'auto']} />
-                <Tooltip contentStyle={{ background: '#1a1f35', border: '1px solid rgba(0,212,255,0.3)', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="weight" stroke="#00d4ff" fillOpacity={1} fill="url(#weightGradient)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="glass-card p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><Droplets className="w-5 h-5 text-purple-400" />Körperfett-Verlauf</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockBodyFatData}>
-                <defs><linearGradient id="fatGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/><stop offset="95%" stopColor="#a855f7" stopOpacity={0}/></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" domain={['auto', 'auto']} />
-                <Tooltip contentStyle={{ background: '#1a1f35', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="fat" stroke="#a855f7" fillOpacity={1} fill="url(#fatGradient)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </motion.div>
+      {r.date && (
+        <motion.div variants={item} className="glass-card p-4 mb-6 text-center text-sm text-gray-400">
+          Letzte Messung: {r.date}
+        </motion.div>
+      )}
     </motion.div>
   )
 }

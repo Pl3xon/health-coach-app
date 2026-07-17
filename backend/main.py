@@ -231,7 +231,8 @@ async def generate_workout_plan(user_id: str = "default"):
 @app.get("/api/dashboard/{user_id}")
 async def get_dashboard(user_id: str):
     profile = get_user_profile(user_id)
-    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}}
+    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None}
+
     if renpho_client:
         try:
             if renpho_client.login():
@@ -239,6 +240,14 @@ async def get_dashboard(user_id: str):
                 dashboard["renpho"]["latest"] = renpho_client.get_latest_measurement()
         except:
             pass
+
+    if google_fit_client and google_fit_client.access_token:
+        try:
+            gf_data = google_fit_client.get_all_vital_data()
+            dashboard["google_fit"] = gf_data
+        except:
+            pass
+
     return dashboard
 
 

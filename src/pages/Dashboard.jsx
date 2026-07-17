@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Scale, Droplets, Flame, Heart, Moon, Activity, Zap, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { TrendingUp, Scale, Droplets, Flame, Heart, Moon, Activity, Zap } from 'lucide-react'
 import { api } from '../services/api'
 
 const container = {
@@ -14,24 +15,70 @@ const item = {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState({ name: 'Kevin', weight: 80, height: 180, goals: ['Abnehmen', 'Muskelaufbau', 'Bauch weg'] })
+  const [renpho, setRenpho] = useState({ connected: false, latest: null })
+  const [googleFit, setGoogleFit] = useState(null)
 
   useEffect(() => {
-    api.getProfile().then(data => setProfile(data)).catch(() => {})
+    api.getDashboard().then(data => {
+      if (data.profile) setProfile(data.profile)
+      if (data.renpho) setRenpho(data.renpho)
+      if (data.google_fit) setGoogleFit(data.google_fit)
+    }).catch(() => {})
   }, [])
 
+  const latest = renpho.latest || {}
+  const gf = googleFit || {}
+
+  const getSteps = () => {
+    if (gf.steps && gf.steps.length > 0) {
+      const todayBucket = gf.steps[gf.steps.length - 1]
+      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.intVal
+      return val !== undefined ? val.toLocaleString('de-DE') : '0'
+    }
+    return '0'
+  }
+
+  const getHeartRate = () => {
+    if (gf.heart_rate && gf.heart_rate.length > 0) {
+      const todayBucket = gf.heart_rate[gf.heart_rate.length - 1]
+      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
+      return val ? Math.round(val) : '—'
+    }
+    return '—'
+  }
+
+  const getCalories = () => {
+    if (gf.calories && gf.calories.length > 0) {
+      const todayBucket = gf.calories[gf.calories.length - 1]
+      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
+      return val ? Math.round(val).toLocaleString('de-DE') : '—'
+    }
+    return '—'
+  }
+
+  const getSleep = () => {
+    if (gf.sleep && gf.sleep.length > 0) {
+      const todayBucket = gf.sleep[gf.sleep.length - 1]
+      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
+      return val ? (val / 60).toFixed(1) : '—'
+    }
+    return '—'
+  }
+
   const vitals = [
-    { label: 'Gewicht', value: '82.5', unit: 'kg', change: '-1.2', trend: 'down', icon: Scale, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-neon' },
-    { label: 'Körperfett', value: '24.8', unit: '%', change: '-0.5', trend: 'down', icon: Droplets, color: 'from-purple-400 to-pink-500', shadow: 'shadow-neon-purple' },
-    { label: 'Muskelmasse', value: '38.2', unit: 'kg', change: '+0.3', trend: 'up', icon: Zap, color: 'from-green-400 to-emerald-500', shadow: 'shadow-neon-green' },
-    { label: 'BMR', value: '1,785', unit: 'kcal', change: '+12', trend: 'up', icon: Flame, color: 'from-orange-400 to-red-500', shadow: 'shadow-neon' },
+    { label: 'Gewicht', value: latest.weight ? String(latest.weight) : String(profile.weight), unit: 'kg', trend: 'down', icon: Scale, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-neon' },
+    { label: 'Körperfett', value: latest.bodyFat ? String(latest.bodyFat) : '—', unit: '%', trend: 'down', icon: Droplets, color: 'from-purple-400 to-pink-500', shadow: 'shadow-neon-purple' },
+    { label: 'Muskelmasse', value: latest.muscleMass ? String(latest.muscleMass) : '—', unit: 'kg', trend: 'up', icon: Zap, color: 'from-green-400 to-emerald-500', shadow: 'shadow-neon-green' },
+    { label: 'BMR', value: latest.bmr ? String(Math.round(latest.bmr)) : '—', unit: 'kcal', trend: 'up', icon: Flame, color: 'from-orange-400 to-red-500', shadow: 'shadow-neon' },
   ]
 
   const todayStats = [
-    { label: 'Kalorien verbrannt', value: '2,340', icon: Flame, color: 'text-orange-400' },
-    { label: 'Herzfrequenz', value: '72', unit: 'bpm', icon: Heart, color: 'text-red-400' },
-    { label: 'Schritte', value: '8,432', icon: Activity, color: 'text-cyan-400' },
-    { label: 'Schlaf', value: '7.5', unit: 'h', icon: Moon, color: 'text-purple-400' },
+    { label: 'Kalorien verbrannt', value: getCalories(), icon: Flame, color: 'text-orange-400' },
+    { label: 'Herzfrequenz', value: getHeartRate(), unit: 'bpm', icon: Heart, color: 'text-red-400' },
+    { label: 'Schritte', value: getSteps(), icon: Activity, color: 'text-cyan-400' },
+    { label: 'Schlaf', value: getSleep(), unit: 'h', icon: Moon, color: 'text-purple-400' },
   ]
 
   return (
@@ -59,10 +106,6 @@ export default function Dashboard() {
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${vital.color} flex items-center justify-center`}>
                 <vital.icon className="w-6 h-6 text-white" />
               </div>
-              <div className={`flex items-center gap-1 text-sm ${vital.trend === 'down' ? 'text-green-400' : 'text-cyan-400'}`}>
-                {vital.trend === 'down' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                {vital.change}
-              </div>
             </div>
             <p className="text-gray-400 text-sm mb-1">{vital.label}</p>
             <p className="text-3xl font-bold">{vital.value}<span className="text-lg text-gray-400 ml-1">{vital.unit}</span></p>
@@ -88,10 +131,10 @@ export default function Dashboard() {
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-4">Schnellaktionen</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="btn-primary flex items-center justify-center gap-2"><Activity className="w-5 h-5" />Workout starten</button>
-            <button className="btn-secondary flex items-center justify-center gap-2"><Flame className="w-5 h-5" />Mahlzeit eintragen</button>
-            <button className="btn-secondary flex items-center justify-center gap-2"><Scale className="w-5 h-5" />Wiegen</button>
-            <button className="btn-secondary flex items-center justify-center gap-2"><Heart className="w-5 h-5" />Puls messen</button>
+            <button onClick={() => navigate('/workout')} className="btn-primary flex items-center justify-center gap-2"><Activity className="w-5 h-5" />Workout starten</button>
+            <button onClick={() => navigate('/coach')} className="btn-secondary flex items-center justify-center gap-2"><Flame className="w-5 h-5" />Mahlzeit eintragen</button>
+            <button onClick={() => navigate('/vitals')} className="btn-secondary flex items-center justify-center gap-2"><Scale className="w-5 h-5" />Wiegen</button>
+            <button onClick={() => navigate('/vitals')} className="btn-secondary flex items-center justify-center gap-2"><Heart className="w-5 h-5" />Puls messen</button>
           </div>
         </div>
       </motion.div>
