@@ -8,13 +8,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
-      - key: GOOGLE_CLIENT_ID
-        value: "679517015378-755hdb8b3o8suaomc62eh1hd59f1griq.apps.googleusercontent.com"
-      - key: GOOGLE_CLIENT_SECRET
-        value: "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"
-      - key: GEMINI_API_KEY
-        value: "AQ.Ab8RN6JW1HBsWGbfvdEUsNG5wUThPkiucEhreUvsGvL312DX7w"
-      - key: RENPHO_EMAIL
-        value: "saynofairplay@gmx.de"
-      - key: RENPHO_PASSWORD
-        value: "Pokemon190696!"

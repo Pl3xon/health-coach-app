@@ -1,20 +1,10 @@
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
-
-# Google Fit API
-GOOGLE_CLIENT_ID = "679517015378-755hdb8b3o8suaomc62eh1hd59f1griq.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "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"
-GOOGLE_AUTH_CODE = "4/0AXEQxICh_GkjumtesGEG2phM_M6B6gs764z9UDE-7DDu4dYSEhZ4JsgOepFpD98iZP4uGw"
-
-# Gemini API
-GEMINI_API_KEY = "AQ.Ab8RN6JW1HBsWGbfvdEUsNG5wUThPkiucEhreUvsGvL312DX7w"
-
-# Renpho API
-RENPHO_EMAIL = "saynofairplay@gmx.de"
-RENPHO_PASSWORD = "Pokemon190696!"
-
-# App Settings
-DATABASE_URL = "sqlite:///./health_coach.db"
-SECRET_KEY = "health-coach-secret-key-2026"
+# API Keys werden als Environment Variables geladen
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_AUTH_CODE = os.environ.get("GOOGLE_AUTH_CODE", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+RENPHO_EMAIL = os.environ.get("RENPHO_EMAIL", "")
+RENPHO_PASSWORD = os.environ.get("RENPHO_PASSWORD", "")
+SECRET_KEY = os.environ.get("SECRET_KEY", "health-coach-secret-key-2026")
