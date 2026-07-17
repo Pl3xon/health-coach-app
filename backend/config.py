@@ -1,0 +1,20 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Google Fit API
+GOOGLE_CLIENT_ID = "679517015378-755hdb8b3o8suaomc62eh1hd59f1griq.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "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"
+GOOGLE_AUTH_CODE = "4/0AXEQxICh_GkjumtesGEG2phM_M6B6gs764z9UDE-7DDu4dYSEhZ4JsgOepFpD98iZP4uGw"
+
+# Gemini API
+GEMINI_API_KEY = "AQ.Ab8RN6JW1HBsWGbfvdEUsNG5wUThPkiucEhreUvsGvL312DX7w"
+
+# Renpho API
+RENPHO_EMAIL = "saynofairplay@gmx.de"
+RENPHO_PASSWORD = "Pokemon190696!"
+
+# App Settings
+DATABASE_URL = "sqlite:///./health_coach.db"
+SECRET_KEY = "health-coach-secret-key-2026"

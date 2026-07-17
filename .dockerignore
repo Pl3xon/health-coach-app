@@ -1,0 +1,5 @@
+# Alles in einem Docker Build
+backend/
+frontend/
+requirements.txt
+Dockerfile
