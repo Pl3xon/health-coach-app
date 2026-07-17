@@ -1,16 +1,13 @@
-import google.generativeai as genai
-from typing import Optional
+from google import genai
+from google.genai import types
 import json
+from typing import Optional
 
 
 class GeminiCoach:
     def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=self._get_system_prompt()
-        )
-        self.chat = self.model.start_chat(history=[])
+        self.client = genai.Client(api_key=api_key)
+        self.system_prompt = self._get_system_prompt()
     
     def _get_system_prompt(self) -> str:
         return """Du bist ein erfahrener Gesundheits- und Fitnesscoach namens "VitalCoach". 
@@ -47,7 +44,13 @@ Antworte strukturiert mit:
             
             full_message = f"{context}\n[Nachricht des Nutzers]: {message}"
             
-            response = self.chat.send_message(full_message)
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=full_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_prompt
+                )
+            )
             return response.text
         except Exception as e:
             return f"Entschuldigung, es ist ein Fehler aufgetreten: {str(e)}"
@@ -71,7 +74,13 @@ Antworte strukturiert mit:
             
             Format als Markdown mit Tabellen wo möglich."""
             
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_prompt
+                )
+            )
             return response.text
         except Exception as e:
             return f"Fehler bei der Planerstellung: {str(e)}"
@@ -99,7 +108,13 @@ Antworte strukturiert mit:
             
             Format als Markdown mit klaren Überschriften für jeden Trainingstag."""
             
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_prompt
+                )
+            )
             return response.text
         except Exception as e:
             return f"Fehler bei der Planerstellung: {str(e)}"
@@ -119,7 +134,13 @@ Antworte strukturiert mit:
             
             Sei spezifisch und datenbasiert."""
             
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.system_prompt
+                )
+            )
             return response.text
         except Exception as e:
             return f"Fehler bei der Analyse: {str(e)}"
