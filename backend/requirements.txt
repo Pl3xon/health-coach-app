@@ -1,1 +1,9 @@
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx>=0.28.1
+pydantic>=2.12.5
+python-dotenv>=1.0.1
+pycryptodome>=3.21.0
+aiofiles>=24.1.0
+python-multipart>=0.0.9
 google-genai>=1.0.0
