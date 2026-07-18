@@ -34,7 +34,7 @@ google_fit_client = None
 gemini_coach = None
 
 
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://health-coach-app-sable.vercel.app")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://health-coach-app-sable.vercel.app/")
 
 
 def init_services():
