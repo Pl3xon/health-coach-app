@@ -31,69 +31,23 @@ export default function Dashboard() {
   const latest = renpho.latest || {}
   const gf = googleFit || {}
 
-  const getSteps = () => {
-    if (gf.steps && gf.steps.length > 0) {
-      const todayBucket = gf.steps[gf.steps.length - 1]
-      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.intVal
-      return val !== undefined ? val.toLocaleString('de-DE') : '0'
-    }
-    return '0'
-  }
-
-  const getHeartRate = () => {
-    if (gf.heart_rate && gf.heart_rate.length > 0) {
-      for (let i = gf.heart_rate.length - 1; i >= 0; i--) {
-        const bucket = gf.heart_rate[i]
-        const points = bucket?.dataset?.[0]?.point
-        if (points && points.length > 0) {
-          const val = points[0]?.value?.[0]?.fpVal
-          if (val && val > 0) return Math.round(val)
-        }
-      }
-    }
-    return '—'
-  }
-
-  const getCalories = () => {
-    if (gf.calories && gf.calories.length > 0) {
-      for (let i = gf.calories.length - 1; i >= 0; i--) {
-        const bucket = gf.calories[i]
-        const points = bucket?.dataset?.[0]?.point
-        if (points && points.length > 0) {
-          const val = points[0]?.value?.[0]?.fpVal
-          if (val && val > 0) return Math.round(val).toLocaleString('de-DE')
-        }
-      }
-    }
-    return '—'
-  }
-
-  const getSleep = () => {
-    if (gf.sleep && gf.sleep.length > 0) {
-      for (let i = gf.sleep.length - 1; i >= 0; i--) {
-        const bucket = gf.sleep[i]
-        const points = bucket?.dataset?.[0]?.point
-        if (points && points.length > 0) {
-          const val = points[0]?.value?.[0]?.fpVal
-          if (val && val > 0) return (val / 3600000).toFixed(1)
-        }
-      }
-    }
-    return '—'
-  }
+  const steps = gf.steps_today ?? 0
+  const calories = gf.calories_today ?? 0
+  const heartRate = gf.heart_rate ?? 0
+  const sleepHours = gf.sleep_hours ?? 0
 
   const vitals = [
-    { label: 'Gewicht', value: latest.weight ? String(latest.weight) : String(profile.weight), unit: 'kg', trend: 'down', icon: Scale, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-neon' },
-    { label: 'Körperfett', value: latest.bodyFat ? String(latest.bodyFat) : '—', unit: '%', trend: 'down', icon: Droplets, color: 'from-purple-400 to-pink-500', shadow: 'shadow-neon-purple' },
-    { label: 'Muskelmasse', value: latest.muscleMass ? String(latest.muscleMass) : '—', unit: 'kg', trend: 'up', icon: Zap, color: 'from-green-400 to-emerald-500', shadow: 'shadow-neon-green' },
-    { label: 'BMR', value: latest.bmr ? String(Math.round(latest.bmr)) : '—', unit: 'kcal', trend: 'up', icon: Flame, color: 'from-orange-400 to-red-500', shadow: 'shadow-neon' },
+    { label: 'Gewicht', value: latest.weight ? String(latest.weight) : '—', unit: 'kg', icon: Scale, color: 'from-cyan-400 to-blue-500', shadow: 'shadow-neon' },
+    { label: 'Körperfett', value: latest.bodyFat ? String(latest.bodyFat) : '—', unit: '%', icon: Droplets, color: 'from-purple-400 to-pink-500', shadow: 'shadow-neon-purple' },
+    { label: 'Muskelmasse', value: latest.muscleMass ? String(latest.muscleMass) : '—', unit: 'kg', icon: Zap, color: 'from-green-400 to-emerald-500', shadow: 'shadow-neon-green' },
+    { label: 'BMR', value: latest.bmr ? String(Math.round(latest.bmr)) : '—', unit: 'kcal', icon: Flame, color: 'from-orange-400 to-red-500', shadow: 'shadow-neon' },
   ]
 
   const todayStats = [
-    { label: 'Kalorien verbrannt', value: getCalories(), icon: Flame, color: 'text-orange-400' },
-    { label: 'Herzfrequenz', value: getHeartRate(), unit: 'bpm', icon: Heart, color: 'text-red-400' },
-    { label: 'Schritte', value: getSteps(), icon: Activity, color: 'text-cyan-400' },
-    { label: 'Schlaf', value: getSleep(), unit: 'h', icon: Moon, color: 'text-purple-400' },
+    { label: 'Kalorien verbrannt', value: calories > 0 ? calories.toLocaleString('de-DE') : '—', icon: Flame, color: 'text-orange-400' },
+    { label: 'Herzfrequenz', value: heartRate > 0 ? String(heartRate) : '—', unit: heartRate > 0 ? 'bpm' : '', icon: Heart, color: 'text-red-400' },
+    { label: 'Schritte', value: steps > 0 ? steps.toLocaleString('de-DE') : '—', icon: Activity, color: 'text-cyan-400' },
+    { label: 'Schlaf', value: sleepHours > 0 ? String(sleepHours) : '—', unit: sleepHours > 0 ? 'h' : '', icon: Moon, color: 'text-purple-400' },
   ]
 
   return (
