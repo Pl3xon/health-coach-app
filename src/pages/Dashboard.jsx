@@ -42,27 +42,42 @@ export default function Dashboard() {
 
   const getHeartRate = () => {
     if (gf.heart_rate && gf.heart_rate.length > 0) {
-      const todayBucket = gf.heart_rate[gf.heart_rate.length - 1]
-      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
-      return val ? Math.round(val) : '—'
+      for (let i = gf.heart_rate.length - 1; i >= 0; i--) {
+        const bucket = gf.heart_rate[i]
+        const points = bucket?.dataset?.[0]?.point
+        if (points && points.length > 0) {
+          const val = points[0]?.value?.[0]?.fpVal
+          if (val && val > 0) return Math.round(val)
+        }
+      }
     }
     return '—'
   }
 
   const getCalories = () => {
     if (gf.calories && gf.calories.length > 0) {
-      const todayBucket = gf.calories[gf.calories.length - 1]
-      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
-      return val ? Math.round(val).toLocaleString('de-DE') : '—'
+      for (let i = gf.calories.length - 1; i >= 0; i--) {
+        const bucket = gf.calories[i]
+        const points = bucket?.dataset?.[0]?.point
+        if (points && points.length > 0) {
+          const val = points[0]?.value?.[0]?.fpVal
+          if (val && val > 0) return Math.round(val).toLocaleString('de-DE')
+        }
+      }
     }
     return '—'
   }
 
   const getSleep = () => {
     if (gf.sleep && gf.sleep.length > 0) {
-      const todayBucket = gf.sleep[gf.sleep.length - 1]
-      const val = todayBucket?.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal
-      return val ? (val / 60).toFixed(1) : '—'
+      for (let i = gf.sleep.length - 1; i >= 0; i--) {
+        const bucket = gf.sleep[i]
+        const points = bucket?.dataset?.[0]?.point
+        if (points && points.length > 0) {
+          const val = points[0]?.value?.[0]?.fpVal
+          if (val && val > 0) return (val / 3600000).toFixed(1)
+        }
+      }
     }
     return '—'
   }

@@ -111,17 +111,6 @@ export default function Profile() {
             />
           </div>
 
-          {/* Weight */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Gewicht (kg)</label>
-            <input
-              type="number"
-              value={profile.weight}
-              onChange={(e) => setProfile(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-              className="input-field"
-            />
-          </div>
-
           {/* Height */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Größe (cm)</label>

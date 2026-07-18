@@ -160,6 +160,13 @@ async def chat(message: ChatMessage):
         except:
             pass
 
+        if google_fit_client and google_fit_client.is_connected():
+            try:
+                gf_data = google_fit_client.get_all_vital_data()
+                health_data["google_fit"] = gf_data
+            except:
+                pass
+
         response = gemini_coach.chat_with_health_data(message.message, health_data)
         save_chat_message(message.user_id, "user", message.message)
         save_chat_message(message.user_id, "assistant", response)

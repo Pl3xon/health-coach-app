@@ -1,5 +1,7 @@
 import httpx
 import time
+import json
+import os
 from typing import Optional
 
 
@@ -14,6 +16,8 @@ class GoogleFitClient:
         "https://www.googleapis.com/auth/fitness.nutrition.read",
     ]
 
+    TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "google_fit_tokens.json")
+
     def __init__(self, client_id: str, client_secret: str, redirect_uri: str = ""):
         self.client_id = client_id
         self.client_secret = client_secret
@@ -22,6 +26,32 @@ class GoogleFitClient:
         self.refresh_token = None
         self.token_expiry = 0
         self.client = httpx.Client(timeout=30.0)
+        self._load_tokens()
+
+    def _load_tokens(self):
+        try:
+            if os.path.exists(self.TOKEN_FILE):
+                with open(self.TOKEN_FILE, "r") as f:
+                    data = json.load(f)
+                self.access_token = data.get("access_token")
+                self.refresh_token = data.get("refresh_token")
+                self.token_expiry = data.get("token_expiry", 0)
+                if self.refresh_token:
+                    print("Google Fit tokens loaded from file")
+        except Exception as e:
+            print(f"Error loading Google Fit tokens: {e}")
+
+    def _save_tokens(self):
+        try:
+            with open(self.TOKEN_FILE, "w") as f:
+                json.dump({
+                    "access_token": self.access_token,
+                    "refresh_token": self.refresh_token,
+                    "token_expiry": self.token_expiry,
+                }, f)
+            print("Google Fit tokens saved to file")
+        except Exception as e:
+            print(f"Error saving Google Fit tokens: {e}")
 
     def get_auth_url(self) -> str:
         scopes = "+".join(self.SCOPES)
@@ -53,6 +83,7 @@ class GoogleFitClient:
                 self.refresh_token = data.get("refresh_token")
                 expires_in = data.get("expires_in", 3600)
                 self.token_expiry = time.time() + expires_in - 300
+                self._save_tokens()
                 return {"success": True}
             return {"success": False, "error": resp.text}
         except Exception as e:
@@ -62,6 +93,7 @@ class GoogleFitClient:
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.token_expiry = time.time() + 3600
+        self._save_tokens()
 
     def refresh_access_token(self) -> bool:
         if not self.refresh_token:
@@ -81,6 +113,7 @@ class GoogleFitClient:
                 self.access_token = data.get("access_token")
                 expires_in = data.get("expires_in", 3600)
                 self.token_expiry = time.time() + expires_in - 300
+                self._save_tokens()
                 return True
             return False
         except Exception:
@@ -88,6 +121,8 @@ class GoogleFitClient:
 
     def _ensure_token(self) -> bool:
         if not self.access_token:
+            if self.refresh_token:
+                return self.refresh_access_token()
             return False
         if time.time() > self.token_expiry and self.refresh_token:
             return self.refresh_access_token()
@@ -126,7 +161,7 @@ class GoogleFitClient:
         start_ms = end_ms - (days * 24 * 60 * 60 * 1000)
         return self.aggregate_data("com.google.step_count.delta", start_ms, end_ms)
 
-    def get_heart_rate(self, days: int = 1) -> list:
+    def get_heart_rate(self, days: int = 7) -> list:
         end_ms = int(time.time() * 1000)
         start_ms = end_ms - (days * 24 * 60 * 60 * 1000)
         return self.aggregate_data("com.google.heart_rate.bpm", start_ms, end_ms)
@@ -136,7 +171,7 @@ class GoogleFitClient:
         start_ms = end_ms - (days * 24 * 60 * 60 * 1000)
         return self.aggregate_data("com.google.weight", start_ms, end_ms)
 
-    def get_sleep(self, days: int = 1) -> list:
+    def get_sleep(self, days: int = 7) -> list:
         end_ms = int(time.time() * 1000)
         start_ms = end_ms - (days * 24 * 60 * 60 * 1000)
         return self.aggregate_data("com.google.sleep.segment", start_ms, end_ms)
