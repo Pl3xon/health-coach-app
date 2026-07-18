@@ -50,21 +50,22 @@ Regeln:
     def generate_nutrition_plan(self, weight: float, height: float, age: int, 
                                  gender: str, goal: str, activity_level: str) -> str:
         try:
-            prompt = f"""Erstelle einen detaillierten Ernährungsplan für folgenden Nutzer:
-            - Gewicht: {weight} kg
-            - Größe: {height} cm
-            - Alter: {age} Jahre
+            prompt = f"""Erstelle einen individuellen Ernährungsplan für:
+            - Gewicht: {weight} kg, Größe: {height} cm, Alter: {age} Jahre
             - Geschlecht: {gender}
             - Ziel: {goal}
             - Aktivitätslevel: {activity_level}
             
-            Berechne zuerst den BMR und TDEE, erstelle dann:
+            Berechne BMR und TDEE, dann:
             1. Tägliche Kalorienempfehlung
-            2. Makronährstoff-Verteilung (Protein, KH, Fett)
-            3. Beispiel-Fahrplan für einen Tag (Frühstück, Mittag, Abend, Snacks)
-            4. Einkaufsliste für die Woche
+            2. Makronährstoff-Verteilung (Protein, KH, Fett in Gramm)
+            3. Konkreter Tagesplan mit 3 Hauptmahlzeiten + 2 Snacks
+            4. Gib BEISPIELHAFTE Gerichte mit konkreten Zutaten und Mengen an
+            5. Variation: Schlage für jede Mahlzeit 2-3 Alternativen vor
             
-            Format als Markdown mit Tabellen wo möglich."""
+            WICHTIG: Gib immer verschiedene, abwechslungsreiche Mahlzeiten vor - 
+            niemals immer die gleichen. Denke an deutsche Küche, aber auch international.
+            Format als Markdown mit Tabellen."""
             
             response = self.client.models.generate_content(
                 model="gemini-3.5-flash",
@@ -81,24 +82,28 @@ Regeln:
                                available_equipment: str = "Nur Körpergewicht",
                                days_per_week: int = 4) -> str:
         try:
-            prompt = f"""Erstelle einen detaillierten Home-Workout-Plan für:
+            prompt = f"""Erstelle einen Home-Workout-Plan für:
             - Fitnesslevel: {fitness_level}
             - Ziel: {goal}
-            - Equipment: {available_equipment}
+            - NUR Körpergewichtsübungen - KEIN Equipment, KEINE Geräte
             - Trainingstage pro Woche: {days_per_week}
             
-            WICHTIG: Für JEDE Übung:
+            WICHTIG: Verwende AUSSCHLIESSLICH Übungen mit dem eigenen Körpergewicht:
+            - Liegestütz (verschiedene Varianten)
+            - Kniebeugen, Ausfallschritte
+            - Plank, Mountain Climbers
+            - Burpees, Jumping Jacks
+            - Dips (am Stuhl), Superman
+            KEINE Hanteln, KEINE Bänder, KEINE Geräte!
+            
+            Für JEDE Übung:
             1. Name der Übung
-            2. Detaillierte Beschreibung der Ausführung
-            3. Satz- und Wiederholungszahl
-            4. YouTube-Link zur Demonstration: https://www.youtube.com/results?search_query=[Übung]+exercise+form
+            2. Klare Beschreibung der Ausführung
+            3. Sätze x Wiederholungen
+            4. YouTube-Suchlink: https://www.youtube.com/results?search_query=[Übung]+bodyweight+form
             
-            Struktur:
-            - Aufwärmen (5 Min)
-            - Hauptteil nach Muskelgruppen
-            - Cool Down
-            
-            Format als Markdown mit klaren Überschriften für jeden Trainingstag."""
+            Struktur: Aufwärmen → Hauptteil → Cool Down
+            Format als Markdown."""
             
             response = self.client.models.generate_content(
                 model="gemini-3.5-flash",

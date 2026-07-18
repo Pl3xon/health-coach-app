@@ -27,6 +27,12 @@ export default function Profile() {
 
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    api.getProfile().then(data => {
+      if (data && data.name) setProfile(data)
+    }).catch(() => {})
+  }, [])
+
   const availableGoals = [
     'Abnehmen', 'Muskelaufbau', 'Ausdauer verbessern', 
     'Bauch weg', 'Allgemeine Fitness', 'Stressabbau',
