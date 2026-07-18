@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, TrendingUp, TrendingDown } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { api } from '../services/api'
 
 const container = {
@@ -19,17 +18,18 @@ export default function Vitals() {
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [renphoData, setRenphoData] = useState(null)
+  const [connecting, setConnecting] = useState(false)
 
   const checkConnections = async () => {
     setLoading(true)
     try {
-      const [renphoRes, fitRes, renphoLatest] = await Promise.all([
+      const [renphoRes, gfStatus, renphoLatest] = await Promise.all([
         api.getRenphoStatus(),
-        api.healthCheck(),
+        api.getGoogleFitStatus(),
         api.getRenphoLatest()
       ])
       setRenphoConnected(renphoRes.connected)
-      setGoogleFitConnected(fitRes.google_fit || false)
+      setGoogleFitConnected(gfStatus.connected || false)
       if (renphoLatest.measurement) setRenphoData(renphoLatest.measurement)
     } catch (error) {
       console.error('Error checking connections:', error)
@@ -38,7 +38,33 @@ export default function Vitals() {
     }
   }
 
-  useEffect(() => { checkConnections() }, [])
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    if (code) {
+      setConnecting(true)
+      api.googleFitCallback(code).then(() => {
+        window.history.replaceState({}, '', '/vitals')
+        checkConnections()
+      }).catch(err => {
+        console.error('Google Fit callback error:', err)
+        window.history.replaceState({}, '', '/vitals')
+      }).finally(() => setConnecting(false))
+    } else {
+      checkConnections()
+    }
+  }, [])
+
+  const connectGoogleFit = async () => {
+    try {
+      const res = await api.getGoogleFitUrl()
+      if (res.url) {
+        window.location.href = res.url
+      }
+    } catch (error) {
+      console.error('Error getting Google Fit URL:', error)
+    }
+  }
 
   const r = renphoData || {}
 
@@ -81,10 +107,17 @@ export default function Vitals() {
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${googleFitConnected ? 'bg-gradient-to-br from-cyan-400 to-blue-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
               {googleFitConnected ? <Activity className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
             </div>
-            <div>
-              <h3 className="font-semibold">Google Fit</h3>
-              <p className={`text-sm ${googleFitConnected ? 'text-cyan-400' : 'text-gray-400'}`}>{googleFitConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
+            <div className="flex-1">
+              <h3 className="font-semibold">Google Fit (Fitbit)</h3>
+              <p className={`text-sm ${googleFitConnected ? 'text-cyan-400' : 'text-gray-400'}`}>
+                {connecting ? 'Verbinde...' : googleFitConnected ? 'Verbunden' : 'Nicht verbunden'}
+              </p>
             </div>
+            {!googleFitConnected && !connecting && (
+              <button onClick={connectGoogleFit} className="btn-primary text-sm px-4 py-2">
+                Verbinden
+              </button>
+            )}
           </div>
         </div>
       </motion.div>

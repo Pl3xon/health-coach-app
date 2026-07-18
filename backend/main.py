@@ -34,6 +34,9 @@ google_fit_client = None
 gemini_coach = None
 
 
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://health-coach-app-sable.vercel.app")
+
+
 def init_services():
     global renpho_client, google_fit_client, gemini_coach
     try:
@@ -44,7 +47,7 @@ def init_services():
 
     try:
         from services.google_fit import GoogleFitClient
-        google_fit_client = GoogleFitClient(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+        google_fit_client = GoogleFitClient(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)
     except Exception as e:
         print(f"Google Fit init error: {e}")
 
@@ -226,6 +229,33 @@ async def generate_workout_plan(user_id: str = "default"):
         return {"plan": plan}
     except Exception as e:
         return {"plan": f"Fehler: {str(e)}"}
+
+
+@app.get("/api/google-fit/url")
+async def google_fit_auth_url():
+    if not google_fit_client:
+        return {"url": None, "error": "Google Fit nicht initialisiert"}
+    url = google_fit_client.get_auth_url()
+    return {"url": url}
+
+
+class GoogleFitCallback(BaseModel):
+    code: str
+
+
+@app.post("/api/google-fit/callback")
+async def google_fit_callback(cb: GoogleFitCallback):
+    if not google_fit_client:
+        return {"success": False, "error": "Google Fit nicht initialisiert"}
+    result = google_fit_client.exchange_code(cb.code)
+    return result
+
+
+@app.get("/api/google-fit/status")
+async def google_fit_status():
+    if not google_fit_client:
+        return {"connected": False}
+    return {"connected": google_fit_client.is_connected()}
 
 
 @app.get("/api/dashboard/{user_id}")

@@ -53,4 +53,14 @@ export const api = {
   // Health
   healthCheck: () => 
     apiCall('/api/health'),
+
+  // Google Fit
+  getGoogleFitUrl: () => 
+    apiCall('/api/google-fit/url'),
+  
+  googleFitCallback: (code) => 
+    apiCall('/api/google-fit/callback', { method: 'POST', body: JSON.stringify({ code }) }),
+  
+  getGoogleFitStatus: () => 
+    apiCall('/api/google-fit/status'),
 };
