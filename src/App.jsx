@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, NavLink, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, MessageCircle, UtensilsCrossed, 
@@ -23,8 +23,112 @@ const navItems = [
   { path: '/profile', icon: User, label: 'Profil' },
 ]
 
-function App() {
+function GoogleFitCallbackRedirect() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    const params = new URLSearchParams()
+    if (code) params.set('code', code)
+    if (error) params.set('error', error)
+    navigate(`/vitals?${params.toString()}`, { replace: true })
+  }, [])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-400">Google Fit wird verbunden...</p>
+    </div>
+  )
+}
+
+function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  return (
+    <div className="min-h-screen flex">
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 glass-card"
+      >
+        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      <motion.aside
+        initial={{ x: -280 }}
+        animate={{ x: sidebarOpen ? 0 : -280 }}
+        className={`sidebar fixed lg:static w-[280px] h-screen z-40 flex flex-col ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } transition-transform duration-300`}
+      >
+        <div className="p-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold gradient-text">VitalCoach</h1>
+              <p className="text-xs text-gray-500">Gesundheits-Cockpit</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-2">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30' 
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`
+              }
+            >
+              <item.icon size={20} />
+              <span className="font-medium">{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-white/5">
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span className="text-sm text-gray-400">System Status</span>
+            </div>
+            <p className="text-xs text-gray-500">Alle APIs verbunden</p>
+          </div>
+        </div>
+      </motion.aside>
+
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 min-h-screen">
+        <AnimatePresence mode="wait">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/coach" element={<Coach />} />
+            <Route path="/nutrition" element={<Nutrition />} />
+            <Route path="/workout" element={<Workout />} />
+            <Route path="/vitals" element={<Vitals />} />
+            <Route path="/profile" element={<Profile />} />
+          </Routes>
+        </AnimatePresence>
+      </main>
+    </div>
+  )
+}
+
+function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -58,91 +162,10 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen flex">
-        {/* Mobile menu button */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 glass-card"
-        >
-          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-
-        {/* Sidebar */}
-        <motion.aside
-          initial={{ x: -280 }}
-          animate={{ x: sidebarOpen ? 0 : -280 }}
-          className={`sidebar fixed lg:static w-[280px] h-screen z-40 flex flex-col ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          } transition-transform duration-300`}
-        >
-          {/* Logo */}
-          <div className="p-6 border-b border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold gradient-text">VitalCoach</h1>
-                <p className="text-xs text-gray-500">Gesundheits-Cockpit</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30' 
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`
-                }
-              >
-                <item.icon size={20} />
-                <span className="font-medium">{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
-
-          {/* Status */}
-          <div className="p-4 border-t border-white/5">
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                <span className="text-sm text-gray-400">System Status</span>
-              </div>
-              <p className="text-xs text-gray-500">Alle APIs verbunden</p>
-            </div>
-          </div>
-        </motion.aside>
-
-        {/* Overlay */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main content */}
-        <main className="flex-1 min-h-screen">
-          <AnimatePresence mode="wait">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/coach" element={<Coach />} />
-              <Route path="/nutrition" element={<Nutrition />} />
-              <Route path="/workout" element={<Workout />} />
-              <Route path="/vitals" element={<Vitals />} />
-              <Route path="/profile" element={<Profile />} />
-            </Routes>
-          </AnimatePresence>
-        </main>
-      </div>
+      <Routes>
+        <Route path="/auth/google-fit" element={<GoogleFitCallbackRedirect />} />
+        <Route path="*" element={<AppLayout />} />
+      </Routes>
     </Router>
   )
 }
