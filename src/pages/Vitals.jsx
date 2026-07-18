@@ -19,6 +19,7 @@ export default function Vitals() {
   const [loading, setLoading] = useState(false)
   const [renphoData, setRenphoData] = useState(null)
   const [connecting, setConnecting] = useState(false)
+  const [callbackError, setCallbackError] = useState(null)
 
   const checkConnections = async () => {
     setLoading(true)
@@ -41,13 +42,23 @@ export default function Vitals() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
-    if (code) {
+    const error = params.get('error')
+    if (error) {
+      setCallbackError(`Google Fit Fehler: ${error}`)
+      window.history.replaceState({}, '', '/vitals')
+    } else if (code) {
       setConnecting(true)
-      api.googleFitCallback(code).then(() => {
-        window.history.replaceState({}, '', '/vitals')
-        checkConnections()
+      setCallbackError(null)
+      api.googleFitCallback(code).then(res => {
+        if (res.success) {
+          window.history.replaceState({}, '', '/vitals')
+          checkConnections()
+        } else {
+          setCallbackError(`Token-Tausch fehlgeschlagen: ${res.error || 'Unbekannter Fehler'}`)
+          window.history.replaceState({}, '', '/vitals')
+        }
       }).catch(err => {
-        console.error('Google Fit callback error:', err)
+        setCallbackError(`Callback Fehler: ${err.message}`)
         window.history.replaceState({}, '', '/vitals')
       }).finally(() => setConnecting(false))
     } else {
@@ -138,6 +149,12 @@ export default function Vitals() {
       {r.date && (
         <motion.div variants={item} className="glass-card p-4 mb-6 text-center text-sm text-gray-400">
           Letzte Messung: {r.date}
+        </motion.div>
+      )}
+
+      {callbackError && (
+        <motion.div variants={item} className="glass-card p-4 mb-6 border border-red-500/30 bg-red-500/10 text-center text-sm text-red-400">
+          {callbackError}
         </motion.div>
       )}
     </motion.div>
