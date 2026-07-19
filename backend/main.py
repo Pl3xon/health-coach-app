@@ -312,6 +312,39 @@ async def google_health_status(user_id: str = "default"):
     return {"connected": gh.is_connected()}
 
 
+@app.get("/api/google-health/authorize")
+async def google_health_authorize(user_id: str = "default"):
+    gh = get_google_health_client(user_id)
+    if not gh:
+        return {"error": "Google Health nicht initialisiert"}
+    auth_url = gh.get_auth_url().replace(
+        gh.redirect_uri,
+        "https://vitalcoach-api.onrender.com/api/google-health/auth-callback"
+    )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=auth_url)
+
+
+@app.get("/api/google-health/auth-callback")
+async def google_health_auth_callback(code: str = "", state: str = "", user_id: str = "default"):
+    if not code:
+        return RedirectResponse(url="https://health-coach-app-sable.vercel.app/vitals?error=no_code")
+    from services.google_health import GoogleHealthClient
+    from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+    gh = GoogleHealthClient(
+        GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+        redirect_uri="https://vitalcoach-api.onrender.com/api/google-health/auth-callback",
+    )
+    result = gh.exchange_code(code)
+    if result.get("success"):
+        save_gh_tokens_for_user(user_id, gh)
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="https://health-coach-app-sable.vercel.app/vitals?gh_connected=1")
+    else:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"https://health-coach-app-sable.vercel.app/vitals?error=exchange_failed")
+
+
 @app.get("/api/google-fit/history")
 async def google_fit_history(user_id: str = "default", days: int = 30):
     data = None
