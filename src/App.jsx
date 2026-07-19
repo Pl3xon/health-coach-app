@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, MessageCircle, UtensilsCrossed, 
   Dumbbell, Activity, Settings, Menu, X, Heart,
-  TrendingUp, User, Stethoscope
+  TrendingUp, User, Stethoscope, LogOut
 } from 'lucide-react'
 
 import { UserProvider, useUser } from './contexts/UserContext'
@@ -49,6 +49,7 @@ function GoogleFitCallbackRedirect() {
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { logout, currentUser } = useUser()
 
   return (
     <div className="min-h-screen flex">
@@ -100,11 +101,22 @@ function AppLayout() {
 
         <div className="p-4 border-t border-white/5">
           <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-sm text-gray-400">System Status</span>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{currentUser?.name || 'User'}</p>
+                <p className="text-xs text-gray-500">Eingeloggt</p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500">Alle APIs verbunden</p>
+            <button
+              onClick={logout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              Abmelden
+            </button>
           </div>
         </div>
       </motion.aside>

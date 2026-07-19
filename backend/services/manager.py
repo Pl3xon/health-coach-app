@@ -1,4 +1,4 @@
-from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
 from services.storage import get_user, get_google_fit_tokens, save_google_fit_tokens, get_yazio_tokens, save_yazio_tokens
 
 
@@ -11,8 +11,8 @@ def get_renpho_client(user_id: str):
     user = get_user(user_id)
     if not user:
         return None
-    email = user.get("renpho_email", "")
-    password = user.get("renpho_password", "")
+    email = user.get("renpho_email", "") or RENPHO_EMAIL
+    password = user.get("renpho_password", "") or RENPHO_PASSWORD
     if not email or not password:
         return None
 
@@ -92,8 +92,8 @@ def get_yazio_client(user_id: str):
     )
 
     if not client._ensure_token():
-        yazio_email = user.get("yazio_email", "")
-        yazio_password = user.get("yazio_password", "")
+        yazio_email = user.get("yazio_email", "") or YAZIO_EMAIL
+        yazio_password = user.get("yazio_password", "") or YAZIO_PASSWORD
         if yazio_email and yazio_password:
             if client.login(yazio_email, yazio_password):
                 save_yazio_tokens(user_id, {

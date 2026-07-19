@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { User, Plus, Trash2, LogOut, Heart } from 'lucide-react'
+import { User, Plus, Trash2, Heart } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 
 export default function UserSelector() {
@@ -34,27 +34,7 @@ export default function UserSelector() {
   }
 
   if (currentUser) {
-    return (
-      <div className="fixed bottom-6 right-6 z-50">
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="glass-card p-3 flex items-center gap-3"
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-sm font-medium">{currentUser.name}</span>
-          <button
-            onClick={logout}
-            className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors"
-            title="Abmelden"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </motion.div>
-      </div>
-    )
+    return null
   }
 
   return (
