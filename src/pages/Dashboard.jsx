@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Scale, Droplets, Flame, Heart, Moon, Activity, Zap } from 'lucide-react'
+import { TrendingUp, Scale, Droplets, Flame, Heart, Moon, Activity, Zap, UtensilsCrossed } from 'lucide-react'
 import { api } from '../services/api'
 import { useUser } from '../contexts/UserContext'
 
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState({ name: 'Kevin', weight: 80, height: 180, goals: ['Abnehmen', 'Muskelaufbau', 'Bauch weg'] })
   const [renpho, setRenpho] = useState({ connected: false, latest: null })
   const [googleFit, setGoogleFit] = useState(null)
+  const [yazioData, setYazioData] = useState(null)
 
   useEffect(() => {
     if (!currentUser) return
@@ -28,6 +29,7 @@ export default function Dashboard() {
       if (data.profile) setProfile(data.profile)
       if (data.renpho) setRenpho(data.renpho)
       if (data.google_fit) setGoogleFit(data.google_fit)
+      if (data.yazio) setYazioData(data.yazio)
     }).catch(() => {})
   }, [currentUser])
 
@@ -98,6 +100,22 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </motion.div>
+
+      {yazioData && (
+        <motion.div variants={item} className="mb-8">
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><UtensilsCrossed className="w-5 h-5 text-orange-400" />Ernährung (Yazio)</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {yazioData.goals && Object.entries(yazioData.goals).slice(0, 4).map(([key, val]) => (
+                <div key={key} className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">{key.split('.').pop()}</p>
+                  <p className="text-lg font-bold">{val}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <motion.div variants={item}>
         <div className="glass-card p-6">

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Heart, Moon, Flame, Zap, Droplets, Apple, ArrowLeft } from 'lucide-react'
+import { Activity, Heart, Moon, Flame, Zap, Droplets, Apple, ArrowLeft, UtensilsCrossed } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { api } from '../services/api'
 import { useUser } from '../contexts/UserContext'
 
@@ -85,9 +85,30 @@ function StatCard({ label, value, unit, icon: Icon, color }) {
       <p className="text-gray-400 text-sm mb-1">{label}</p>
       <p className="text-2xl font-bold">
         {value ?? '—'}
-        {value && <span className="text-sm text-gray-400 ml-1">{unit}</span>}
+        {value != null && <span className="text-sm text-gray-400 ml-1">{unit}</span>}
       </p>
     </motion.div>
+  )
+}
+
+function MacroBar({ label, current, goal, color }) {
+  const pct = goal > 0 ? Math.min(100, Math.round((current / goal) * 100)) : 0
+  return (
+    <div className="glass-card p-4">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-xs text-gray-400">{Math.round(current)} / {goal}</span>
+      </div>
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1 }}
+          className={`h-full rounded-full bg-gradient-to-r ${color}`}
+        />
+      </div>
+      <p className="text-xs text-gray-500 mt-1 text-right">{pct}%</p>
+    </div>
   )
 }
 
@@ -97,6 +118,7 @@ export default function Health() {
   const [history, setHistory] = useState(null)
   const [today, setToday] = useState(null)
   const [yazioData, setYazioData] = useState(null)
+  const [yazioDiary, setYazioDiary] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -107,14 +129,16 @@ export default function Health() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [historyRes, dashboardRes, yazioRes] = await Promise.all([
+      const [historyRes, dashboardRes, yazioRes, yazioDiaryRes] = await Promise.all([
         api.getGoogleFitHistory(currentUser.id, 30),
         api.getDashboard(currentUser.id),
-        api.getYazioDaily(currentUser.id)
+        api.getYazioDaily(currentUser.id),
+        api.getYazioDiary(currentUser.id),
       ])
       if (historyRes.data) setHistory(historyRes.data)
       if (dashboardRes.google_fit) setToday(dashboardRes.google_fit)
       if (yazioRes.data) setYazioData(yazioRes.data)
+      if (yazioDiaryRes.data) setYazioDiary(yazioDiaryRes.data)
     } catch (error) {
       console.error('Error loading health data:', error)
     } finally {
@@ -132,7 +156,17 @@ export default function Health() {
 
   const yazioGoals = yazioData?.goals || {}
   const calorieGoal = yazioGoals['energy.energy'] || 2200
+  const proteinGoal = yazioGoals['nutrient.protein'] || 165
   const carbGoal = yazioGoals['nutrient.carb'] || 220
+  const fatGoal = yazioGoals['nutrient.fat'] || 73
+  const waterGoal = yazioGoals['water'] || 2500
+
+  const yazioSummary = yazioData?.summary || yazioData?.intakes || {}
+  const consumedCalories = yazioSummary['energy.energy'] || yazioData?.energy || 0
+  const consumedProtein = yazioSummary['nutrient.protein'] || yazioData?.protein || 0
+  const consumedCarbs = yazioSummary['nutrient.carb'] || yazioData?.carb || 0
+  const consumedFat = yazioSummary['nutrient.fat'] || yazioData?.fat || 0
+  const consumedWater = yazioData?.water || 0
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="p-6 lg:p-8">
@@ -160,19 +194,71 @@ export default function Health() {
         <StatCard label="HRV" value={today?.hrv || null} unit="ms" icon={Activity} color="from-purple-400 to-pink-500" />
         <StatCard label="SpO2" value={today?.spo2 || null} unit="%" icon={Droplets} color="from-cyan-400 to-blue-500" />
         <StatCard label="Schritte" value={today?.steps_today || null} unit="" icon={Activity} color="from-green-400 to-emerald-500" />
-        <StatCard label="Kalorien" value={today?.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
+        <StatCard label="Kalorien (Fitbit)" value={today?.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
         <StatCard label="Aktivzonen" value={today?.active_zone_minutes || null} unit="min" icon={Zap} color="from-yellow-400 to-orange-500" />
         <StatCard label="Schlaf" value={today?.sleep_hours || null} unit="h" icon={Moon} color="from-indigo-400 to-purple-500" />
       </motion.div>
 
       {yazioData && (
-        <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Kalorien (Ziel)" value={calorieGoal} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
-          <StatCard label="Kohlenhydrate (Ziel)" value={carbGoal} unit="g" icon={Apple} color="from-green-400 to-emerald-500" />
+        <>
+          <motion.div variants={item} className="mb-4">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <UtensilsCrossed className="w-5 h-5 text-orange-400" />
+              Ernährung (Yazio)
+            </h2>
+          </motion.div>
+
+          <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Kalorien (Ziel)" value={calorieGoal} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
+            <StatCard label="Protein (Ziel)" value={proteinGoal} unit="g" icon={Droplets} color="from-cyan-400 to-blue-500" />
+            <StatCard label="Kohlenhydrate (Ziel)" value={carbGoal} unit="g" icon={Apple} color="from-green-400 to-emerald-500" />
+            <StatCard label="Fett (Ziel)" value={fatGoal} unit="g" icon={Droplets} color="from-purple-400 to-pink-500" />
+          </motion.div>
+
+          {consumedCalories > 0 && (
+            <motion.div variants={item} className="mb-6">
+              <h3 className="text-lg font-semibold mb-3">Heute gegessen</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <MacroBar label="Kalorien" current={consumedCalories} goal={calorieGoal} color="from-orange-400 to-red-500" />
+                <MacroBar label="Protein" current={consumedProtein} goal={proteinGoal} color="from-cyan-400 to-blue-500" />
+                <MacroBar label="Kohlenhydrate" current={consumedCarbs} goal={carbGoal} color="from-green-400 to-emerald-500" />
+                <MacroBar label="Fett" current={consumedFat} goal={fatGoal} color="from-purple-400 to-pink-500" />
+                {consumedWater > 0 && <MacroBar label="Wasser" current={consumedWater} goal={waterGoal} color="from-blue-400 to-cyan-500" />}
+              </div>
+            </motion.div>
+          )}
+
+          {yazioDiary && yazioDiary.length > 0 && (
+            <motion.div variants={item} className="glass-card p-5 mb-6">
+              <h3 className="font-semibold mb-3">Mahlzeiten heute</h3>
+              <div className="space-y-2">
+                {yazioDiary.slice(0, 10).map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{item.name || `Eintrag ${i + 1}`}</p>
+                      <p className="text-xs text-gray-500">{item.daytime || 'Snack'}</p>
+                    </div>
+                    <div className="text-right">
+                      {item.energy != null && <p className="text-sm text-orange-400">{Math.round(item.energy)} kcal</p>}
+                      {item.protein != null && <p className="text-xs text-gray-400">P: {Math.round(item.protein)}g</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </>
+      )}
+
+      {!yazioData && (
+        <motion.div variants={item} className="glass-card p-6 mb-8 text-center">
+          <UtensilsCrossed className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400 mb-2">Yazio nicht verbunden</p>
+          <p className="text-xs text-gray-500">Trage deine Yazio-Zugangsdaten im Profil ein, um Ernährungsdaten hier zu sehen.</p>
         </motion.div>
       )}
 
-      <motion.div variants={item} className="mb-4">
+      <motion.div variants={item} className="mb-4 mt-8">
         <h2 className="text-xl font-semibold mb-4">Verlauf (30 Tage)</h2>
       </motion.div>
 

@@ -101,6 +101,9 @@ def get_yazio_client(user_id: str):
                     "refresh_token": client.refresh_token,
                     "token_expiry": client.token_expiry,
                 })
+                _yazio_clients[user_id] = client
+                return client
+        return None
 
     _yazio_clients[user_id] = client
     return client

@@ -9,7 +9,7 @@ import json
 import time
 import os
 
-from config import GOOGLE_REDIRECT_URI
+from config import GOOGLE_REDIRECT_URI, YAZIO_EMAIL
 from services.storage import (
     get_or_create_profile, save_profile, get_chat_history, save_chat_message,
     list_users, get_user, create_user, update_user, delete_user,
@@ -291,17 +291,21 @@ async def google_fit_history(user_id: str = "default", days: int = 30):
 
 @app.get("/api/yazio/status")
 async def yazio_status(user_id: str = "default"):
+    user = get_user(user_id)
+    has_yazio_creds = False
+    if user:
+        has_yazio_creds = bool(user.get("yazio_email")) or bool(YAZIO_EMAIL)
     yazio = get_yazio_client(user_id)
     if not yazio:
-        return {"connected": False}
-    return {"connected": yazio.is_connected()}
+        return {"connected": False, "has_credentials": has_yazio_creds}
+    return {"connected": yazio.is_connected(), "has_credentials": has_yazio_creds}
 
 
 @app.get("/api/yazio/daily")
 async def yazio_daily(user_id: str = "default", date: str = None):
     yazio = get_yazio_client(user_id)
     if not yazio:
-        return {"data": None, "error": "Yazio nicht initialisiert"}
+        return {"data": None, "error": "Yazio nicht verbunden. Bitte Yazio-Zugangsdaten im Profil eintragen oder YAZIO_EMAIL/YAZIO_PASSWORD in Render ENV setzen."}
     if not date:
         from datetime import datetime, timezone, timedelta
         tz = timezone(timedelta(hours=2))
@@ -317,7 +321,7 @@ async def yazio_daily(user_id: str = "default", date: str = None):
 async def yazio_diary(user_id: str = "default", date: str = None):
     yazio = get_yazio_client(user_id)
     if not yazio:
-        return {"data": None, "error": "Yazio nicht initialisiert"}
+        return {"data": None, "error": "Yazio nicht verbunden"}
     if not date:
         from datetime import datetime, timezone, timedelta
         tz = timezone(timedelta(hours=2))

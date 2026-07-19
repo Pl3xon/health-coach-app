@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, UtensilsCrossed } from 'lucide-react'
+import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, UtensilsCrossed, Save } from 'lucide-react'
 import { api } from '../services/api'
 import { useUser } from '../contexts/UserContext'
 
@@ -23,6 +23,10 @@ export default function Vitals() {
   const [renphoData, setRenphoData] = useState(null)
   const [connecting, setConnecting] = useState(false)
   const [callbackError, setCallbackError] = useState(null)
+  const [showYazioForm, setShowYazioForm] = useState(false)
+  const [yazioEmail, setYazioEmail] = useState('')
+  const [yazioPassword, setYazioPassword] = useState('')
+  const [savingYazio, setSavingYazio] = useState(false)
 
   const checkConnections = async () => {
     if (!currentUser) return
@@ -81,6 +85,22 @@ export default function Vitals() {
       }
     } catch (error) {
       console.error('Error getting Google Fit URL:', error)
+    }
+  }
+
+  const saveYazioCredentials = async () => {
+    if (!yazioEmail || !yazioPassword) return
+    setSavingYazio(true)
+    try {
+      await api.updateUser(currentUser.id, { yazio_email: yazioEmail, yazio_password: yazioPassword })
+      setShowYazioForm(false)
+      setYazioEmail('')
+      setYazioPassword('')
+      checkConnections()
+    } catch (error) {
+      console.error('Error saving Yazio credentials:', error)
+    } finally {
+      setSavingYazio(false)
     }
   }
 
@@ -143,11 +163,42 @@ export default function Vitals() {
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${yazioConnected ? 'bg-gradient-to-br from-orange-400 to-red-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
               {yazioConnected ? <UtensilsCrossed className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold">Yazio</h3>
               <p className={`text-sm ${yazioConnected ? 'text-orange-400' : 'text-gray-400'}`}>{yazioConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
             </div>
+            {!yazioConnected && (
+              <button onClick={() => setShowYazioForm(!showYazioForm)} className="btn-primary text-sm px-4 py-2">
+                Verbinden
+              </button>
+            )}
           </div>
+          {!yazioConnected && showYazioForm && (
+            <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+              <p className="text-xs text-gray-500">Trage deine Yazio-Zugangsdaten ein:</p>
+              <input
+                type="email"
+                value={yazioEmail}
+                onChange={(e) => setYazioEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500"
+                placeholder="Yazio E-Mail"
+              />
+              <input
+                type="password"
+                value={yazioPassword}
+                onChange={(e) => setYazioPassword(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500"
+                placeholder="Yazio Passwort"
+              />
+              <button
+                onClick={saveYazioCredentials}
+                disabled={savingYazio || !yazioEmail || !yazioPassword}
+                className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+              >
+                {savingYazio ? 'Speichere...' : <><Save className="w-4 h-4" /> Speichern & Verbinden</>}
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
 
