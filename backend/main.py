@@ -233,6 +233,17 @@ async def google_fit_status():
     return {"connected": google_fit_client.is_connected()}
 
 
+@app.get("/api/google-fit/history")
+async def google_fit_history(days: int = 30):
+    if not google_fit_client or not google_fit_client.access_token:
+        return {"data": None}
+    try:
+        data = google_fit_client.get_health_history(days)
+        return {"data": data}
+    except Exception as e:
+        return {"data": None, "error": str(e)}
+
+
 @app.get("/api/debug/google-fit-sources")
 async def debug_google_fit_sources():
     if not google_fit_client or not google_fit_client.access_token:

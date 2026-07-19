@@ -3,7 +3,6 @@ import time
 import json
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 
 
 class GoogleFitClient:
@@ -15,6 +14,7 @@ class GoogleFitClient:
         "https://www.googleapis.com/auth/fitness.sleep.read",
         "https://www.googleapis.com/auth/fitness.body.read",
         "https://www.googleapis.com/auth/fitness.nutrition.read",
+        "https://www.googleapis.com/auth/fitness.oxygen_saturation.read",
     ]
 
     TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "google_fit_tokens.json")
@@ -135,19 +135,28 @@ class GoogleFitClient:
             "Content-Type": "application/json",
         }
 
-    def _get_today_range_ms(self):
-        tz = timezone(timedelta(hours=2))
-        now = datetime.now(tz)
-        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        return int(start_of_today.timestamp() * 1000), int(now.timestamp() * 1000)
+    def _tz(self):
+        return timezone(timedelta(hours=2))
 
-    def _aggregate_raw(self, data_type: str, start_ms: int, end_ms: int) -> list:
+    def _today_range_ms(self):
+        tz = self._tz()
+        now = datetime.now(tz)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return int(start.timestamp() * 1000), int(now.timestamp() * 1000)
+
+    def _days_range_ms(self, days: int):
+        tz = self._tz()
+        now = datetime.now(tz)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days)
+        return int(start.timestamp() * 1000), int(now.timestamp() * 1000)
+
+    def _aggregate(self, data_type: str, start_ms: int, end_ms: int, bucket_ms: int = 86400000) -> list:
         if not self._ensure_token():
             return []
         try:
             body = {
                 "aggregateBy": [{"dataTypeName": data_type}],
-                "bucketByTime": {"durationMillis": 86400000},
+                "bucketByTime": {"durationMillis": bucket_ms},
                 "startTimeMillis": start_ms,
                 "endTimeMillis": end_ms,
             }
@@ -162,17 +171,7 @@ class GoogleFitClient:
         except Exception:
             return []
 
-    def _sum_int_from_buckets(self, buckets: list) -> int:
-        total = 0
-        for bucket in buckets:
-            for ds in bucket.get("dataset", []):
-                for pt in ds.get("point", []):
-                    for val in pt.get("value", []):
-                        if "intVal" in val:
-                            total += val["intVal"]
-        return total
-
-    def _sum_fp_from_buckets(self, buckets: list) -> float:
+    def _sum_fp(self, buckets: list) -> float:
         total = 0.0
         for bucket in buckets:
             for ds in bucket.get("dataset", []):
@@ -182,50 +181,71 @@ class GoogleFitClient:
                             total += val["fpVal"]
         return total
 
+    def _sum_int(self, buckets: list) -> int:
+        total = 0
+        for bucket in buckets:
+            for ds in bucket.get("dataset", []):
+                for pt in ds.get("point", []):
+                    for val in pt.get("value", []):
+                        if "intVal" in val:
+                            total += val["intVal"]
+        return total
+
+    def _last_fp(self, buckets: list) -> float:
+        for bucket in reversed(buckets):
+            for ds in bucket.get("dataset", []):
+                for pt in ds.get("point", []):
+                    for val in pt.get("value", []):
+                        if "fpVal" in val and val["fpVal"] > 0:
+                            return val["fpVal"]
+        return 0.0
+
+    def _last_int(self, buckets: list) -> int:
+        for bucket in reversed(buckets):
+            for ds in bucket.get("dataset", []):
+                for pt in ds.get("point", []):
+                    for val in pt.get("value", []):
+                        if "intVal" in val and val["intVal"] > 0:
+                            return val["intVal"]
+        return 0
+
+    def _daily_values(self, data_type: str, days: int, as_float: bool = True) -> list:
+        start_ms, end_ms = self._days_range_ms(days)
+        buckets = self._aggregate(data_type, start_ms, end_ms)
+        result = []
+        tz = self._tz()
+        for bucket in buckets:
+            ts = bucket.get("startTimeMillis", 0)
+            dt = datetime.fromtimestamp(ts / 1000, tz=tz)
+            val = 0.0
+            for ds in bucket.get("dataset", []):
+                for pt in ds.get("point", []):
+                    for v in pt.get("value", []):
+                        if as_float and "fpVal" in v:
+                            val += v["fpVal"]
+                        elif not as_float and "intVal" in v:
+                            val += v["intVal"]
+            result.append({"date": dt.strftime("%Y-%m-%d"), "value": round(val, 1)})
+        return result
+
     def get_today_steps(self) -> int:
-        start_ms, end_ms = self._get_today_range_ms()
-        buckets = self._aggregate_raw("com.google.step_count.delta", start_ms, end_ms)
-        return self._sum_int_from_buckets(buckets)
+        start_ms, end_ms = self._today_range_ms()
+        return self._sum_int(self._aggregate("com.google.step_count.delta", start_ms, end_ms))
 
     def get_today_calories(self) -> int:
-        start_ms, end_ms = self._get_today_range_ms()
-        buckets = self._aggregate_raw("com.google.calories.expended", start_ms, end_ms)
-        total = self._sum_fp_from_buckets(buckets)
-        return max(0, round(total))
+        start_ms, end_ms = self._today_range_ms()
+        return max(0, round(self._sum_fp(self._aggregate("com.google.calories.expended", start_ms, end_ms))))
 
     def get_latest_heart_rate(self) -> int:
         now_ms = int(time.time() * 1000)
         day_ago_ms = now_ms - (24 * 60 * 60 * 1000)
-        if not self._ensure_token():
-            return 0
-        try:
-            body = {
-                "aggregateBy": [{"dataTypeName": "com.google.heart_rate.bpm"}],
-                "bucketByTime": {"durationMillis": 60000},
-                "startTimeMillis": day_ago_ms,
-                "endTimeMillis": now_ms,
-            }
-            resp = self.client.post(
-                f"{self.BASE_URL}/users/me/dataset:aggregate",
-                json=body,
-                headers=self._get_headers(),
-            )
-            if resp.status_code == 200:
-                buckets = resp.json().get("bucket", [])
-                for bucket in reversed(buckets):
-                    for ds in bucket.get("dataset", []):
-                        for pt in ds.get("point", []):
-                            for val in pt.get("value", []):
-                                if "fpVal" in val and val["fpVal"] > 0:
-                                    return round(val["fpVal"])
-            return 0
-        except Exception:
-            return 0
+        buckets = self._aggregate("com.google.heart_rate.bpm", day_ago_ms, now_ms, 60000)
+        return round(self._last_fp(buckets))
 
     def get_today_sleep_hours(self) -> float:
         now_ms = int(time.time() * 1000)
         week_ago_ms = now_ms - (7 * 24 * 60 * 60 * 1000)
-        buckets = self._aggregate_raw("com.google.sleep.segment", week_ago_ms, now_ms)
+        buckets = self._aggregate("com.google.sleep.segment", week_ago_ms, now_ms)
         total_ms = 0
         for bucket in buckets:
             for ds in bucket.get("dataset", []):
@@ -235,12 +255,44 @@ class GoogleFitClient:
                             total_ms += val["intVal"]
         return round(total_ms / 3600000, 1) if total_ms > 0 else 0
 
+    def get_resting_heart_rate(self) -> int:
+        start_ms, end_ms = self._today_range_ms()
+        return round(self._last_fp(self._aggregate("com.google.resting_heart_rate", start_ms, end_ms)))
+
+    def get_hrv(self) -> float:
+        start_ms, end_ms = self._today_range_ms()
+        return round(self._last_fp(self._aggregate("com.google.heart_rate_variability.daily", start_ms, end_ms)), 1)
+
+    def get_spo2(self) -> float:
+        start_ms, end_ms = self._today_range_ms()
+        val = self._last_fp(self._aggregate("com.google.oxygen_saturation", start_ms, end_ms))
+        return round(val * 100, 1) if val > 0 else 0
+
+    def get_active_zone_minutes(self) -> int:
+        start_ms, end_ms = self._today_range_ms()
+        return self._sum_int(self._aggregate("com.google.active_zone_minutes", start_ms, end_ms))
+
     def get_all_vital_data(self) -> dict:
         return {
             "steps_today": self.get_today_steps(),
             "calories_today": self.get_today_calories(),
             "heart_rate": self.get_latest_heart_rate(),
             "sleep_hours": self.get_today_sleep_hours(),
+            "resting_heart_rate": self.get_resting_heart_rate(),
+            "hrv": self.get_hrv(),
+            "spo2": self.get_spo2(),
+            "active_zone_minutes": self.get_active_zone_minutes(),
+        }
+
+    def get_health_history(self, days: int = 30) -> dict:
+        return {
+            "steps": self._daily_values("com.google.step_count.delta", days, as_float=False),
+            "calories": self._daily_values("com.google.calories.expended", days, as_float=True),
+            "heart_rate": self._daily_values("com.google.heart_rate.bpm", days, as_float=True),
+            "resting_heart_rate": self._daily_values("com.google.resting_heart_rate", days, as_float=True),
+            "hrv": self._daily_values("com.google.heart_rate_variability.daily", days, as_float=True),
+            "spo2": self._daily_values("com.google.oxygen_saturation", days, as_float=True),
+            "active_zone_minutes": self._daily_values("com.google.active_zone_minutes", days, as_float=False),
         }
 
     def is_connected(self) -> bool:
