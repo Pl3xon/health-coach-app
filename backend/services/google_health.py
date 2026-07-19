@@ -103,12 +103,14 @@ class GoogleHealthClient:
             "Accept": "application/json",
         }
 
-    def _get(self, path: str) -> dict | None:
+    def _get(self, path: str, params: dict = None) -> dict | None:
         if not self._ensure_token():
             return None
         try:
+            url = f"{self.BASE_URL}{path}"
             resp = self.client.get(
-                f"{self.BASE_URL}{path}",
+                url,
+                params=params,
                 headers=self._get_headers(),
             )
             if resp.status_code == 200:
@@ -125,9 +127,10 @@ class GoogleHealthClient:
 
     def _list_data_points(self, data_type: str, filter_str: str = "") -> list:
         path = f"/users/me/dataTypes/{data_type}/dataPoints"
+        params = {}
         if filter_str:
-            path += f"?filter={filter_str}"
-        data = self._get(path)
+            params["filter"] = filter_str
+        data = self._get(path, params=params)
         if data:
             return data.get("dataPoints", [])
         return []

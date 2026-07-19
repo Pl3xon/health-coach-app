@@ -437,7 +437,22 @@ async def debug_health(user_id: str = "default"):
     except Exception as e:
         results["heart_rate_error"] = str(e)
 
-    return {"connected": True, "results": results}
+    raw_rhr = None
+    try:
+        from datetime import datetime, timezone, timedelta
+        tz = timezone(timedelta(hours=2))
+        today = datetime.now(tz).strftime("%Y-%m-%d")
+        raw_rhr = gh._list_data_points("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"')
+    except Exception as e:
+        raw_rhr = str(e)
+
+    raw_spo2 = None
+    try:
+        raw_spo2 = gh._list_data_points("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"')
+    except Exception as e:
+        raw_spo2 = str(e)
+
+    return {"connected": True, "results": results, "raw_rhr_count": len(raw_rhr) if isinstance(raw_rhr, list) else raw_rhr, "raw_spo2_count": len(raw_spo2) if isinstance(raw_spo2, list) else raw_spo2}
 
 
 @app.get("/api/dashboard/{user_id}")
