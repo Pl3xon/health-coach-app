@@ -151,3 +151,14 @@ def save_yazio_tokens(user_id: str, tokens: dict):
     all_tokens[user_id] = tokens
     save("yazio_tokens.json", all_tokens)
 
+
+def get_fitbit_tokens(user_id: str) -> dict | None:
+    tokens = load("fitbit_tokens.json", {})
+    return tokens.get(user_id)
+
+
+def save_fitbit_tokens(user_id: str, tokens: dict):
+    all_tokens = load("fitbit_tokens.json", {})
+    all_tokens[user_id] = tokens
+    save("fitbit_tokens.json", all_tokens)
+

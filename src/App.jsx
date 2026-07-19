@@ -47,6 +47,26 @@ function GoogleFitCallbackRedirect() {
   )
 }
 
+function FitbitCallbackRedirect() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    const params = new URLSearchParams()
+    if (code) params.set('code', code)
+    if (error) params.set('error', error)
+    navigate(`/vitals?${params.toString()}`, { replace: true })
+  }, [])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-400">Fitbit wird verbunden...</p>
+    </div>
+  )
+}
+
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { logout, currentUser } = useUser()
@@ -188,6 +208,7 @@ function App() {
       <UserProvider>
         <Routes>
           <Route path="/auth/google-fit" element={<GoogleFitCallbackRedirect />} />
+          <Route path="/auth/fitbit" element={<FitbitCallbackRedirect />} />
           <Route path="*" element={<AppContent />} />
         </Routes>
       </UserProvider>

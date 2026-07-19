@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Heart, Moon, Flame, Zap, Droplets, Apple, ArrowLeft, UtensilsCrossed } from 'lucide-react'
+import { Activity, Heart, Moon, Flame, Zap, Droplets, ArrowLeft, UtensilsCrossed } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { api } from '../services/api'
@@ -91,32 +91,12 @@ function StatCard({ label, value, unit, icon: Icon, color }) {
   )
 }
 
-function MacroBar({ label, current, goal, color }) {
-  const pct = goal > 0 ? Math.min(100, Math.round((current / goal) * 100)) : 0
-  return (
-    <div className="glass-card p-4">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-gray-400">{Math.round(current)} / {goal}</span>
-      </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 1 }}
-          className={`h-full rounded-full bg-gradient-to-r ${color}`}
-        />
-      </div>
-      <p className="text-xs text-gray-500 mt-1 text-right">{pct}%</p>
-    </div>
-  )
-}
-
 export default function Health() {
   const navigate = useNavigate()
   const { currentUser } = useUser()
   const [history, setHistory] = useState(null)
   const [today, setToday] = useState(null)
+  const [fitbitData, setFitbitData] = useState(null)
   const [yazioData, setYazioData] = useState(null)
   const [yazioDiary, setYazioDiary] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -129,14 +109,19 @@ export default function Health() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [historyRes, dashboardRes, yazioRes, yazioDiaryRes] = await Promise.all([
+      const [historyRes, dashboardRes, yazioRes, yazioDiaryRes, fitbitVitalsRes] = await Promise.all([
         api.getGoogleFitHistory(currentUser.id, 30),
         api.getDashboard(currentUser.id),
         api.getYazioDaily(currentUser.id),
         api.getYazioDiary(currentUser.id),
+        api.getFitbitVitals(currentUser.id),
       ])
       if (historyRes.data) setHistory(historyRes.data)
       if (dashboardRes.google_fit) setToday(dashboardRes.google_fit)
+      if (fitbitVitalsRes.data) {
+        setFitbitData(fitbitVitalsRes.data)
+        if (!today) setToday(fitbitVitalsRes.data)
+      }
       if (yazioRes.data) setYazioData(yazioRes.data)
       if (yazioDiaryRes.data) setYazioDiary(yazioDiaryRes.data)
     } catch (error) {
@@ -154,12 +139,14 @@ export default function Health() {
   const spo2Data = history?.spo2 || []
   const azmData = history?.active_zone_minutes || []
 
-  const yazioGoals = yazioData?.goals || {}
-  const calorieGoal = yazioGoals['energy.energy'] || 2200
-  const proteinGoal = yazioGoals['nutrient.protein'] || 165
-  const carbGoal = yazioGoals['nutrient.carb'] || 220
-  const fatGoal = yazioGoals['nutrient.fat'] || 73
-  const waterGoal = yazioGoals['water'] || 2500
+  const vitalsToday = today || {}
+  const fbToday = fitbitData || {}
+  const displayHR = vitalsToday.heart_rate || fbToday.resting_heart_rate || null
+  const displayRestingHR = vitalsToday.resting_heart_rate || fbToday.resting_heart_rate || null
+  const displayHRV = vitalsToday.hrv || fbToday.hrv || null
+  const displaySpO2 = vitalsToday.spo2 || fbToday.spo2 || null
+  const displaySleep = vitalsToday.sleep_hours || fbToday.sleep_hours || null
+  const displayAZM = vitalsToday.active_zone_minutes || fbToday.active_zone_minutes || null
 
   const yazioSummary = yazioData?.summary || yazioData?.intakes || {}
   const consumedCalories = yazioSummary['energy.energy'] || yazioData?.energy || 0
@@ -167,6 +154,16 @@ export default function Health() {
   const consumedCarbs = yazioSummary['nutrient.carb'] || yazioData?.carb || 0
   const consumedFat = yazioSummary['nutrient.fat'] || yazioData?.fat || 0
   const consumedWater = yazioData?.water || 0
+
+  const hasYazioData = consumedCalories > 0 || consumedProtein > 0 || consumedCarbs > 0 || consumedFat > 0 || consumedWater > 0
+
+  const yazioMacros = [
+    { label: 'Kalorien', value: consumedCalories, unit: 'kcal', color: 'from-orange-400 to-red-500' },
+    { label: 'Protein', value: consumedProtein, unit: 'g', color: 'from-cyan-400 to-blue-500' },
+    { label: 'Kohlenhydrate', value: consumedCarbs, unit: 'g', color: 'from-green-400 to-emerald-500' },
+    { label: 'Fett', value: consumedFat, unit: 'g', color: 'from-purple-400 to-pink-500' },
+    { label: 'Wasser', value: consumedWater, unit: 'ml', color: 'from-blue-400 to-cyan-500' },
+  ]
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="p-6 lg:p-8">
@@ -189,14 +186,14 @@ export default function Health() {
       </motion.div>
 
       <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Herzfrequenz" value={today?.heart_rate || null} unit="bpm" icon={Heart} color="from-red-400 to-pink-500" />
-        <StatCard label="Ruhe-HF" value={today?.resting_heart_rate || null} unit="bpm" icon={Heart} color="from-orange-400 to-red-500" />
-        <StatCard label="HRV" value={today?.hrv || null} unit="ms" icon={Activity} color="from-purple-400 to-pink-500" />
-        <StatCard label="SpO2" value={today?.spo2 || null} unit="%" icon={Droplets} color="from-cyan-400 to-blue-500" />
-        <StatCard label="Schritte" value={today?.steps_today || null} unit="" icon={Activity} color="from-green-400 to-emerald-500" />
-        <StatCard label="Kalorien (Fitbit)" value={today?.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
-        <StatCard label="Aktivzonen" value={today?.active_zone_minutes || null} unit="min" icon={Zap} color="from-yellow-400 to-orange-500" />
-        <StatCard label="Schlaf" value={today?.sleep_hours || null} unit="h" icon={Moon} color="from-indigo-400 to-purple-500" />
+        <StatCard label="Herzfrequenz" value={displayHR} unit="bpm" icon={Heart} color="from-red-400 to-pink-500" />
+        <StatCard label="Ruhe-HF" value={displayRestingHR} unit="bpm" icon={Heart} color="from-orange-400 to-red-500" />
+        <StatCard label="HRV" value={displayHRV} unit="ms" icon={Activity} color="from-purple-400 to-pink-500" />
+        <StatCard label="SpO2" value={displaySpO2} unit="%" icon={Droplets} color="from-cyan-400 to-blue-500" />
+        <StatCard label="Schritte" value={vitalsToday.steps_today || fbToday.steps_today || null} unit="" icon={Activity} color="from-green-400 to-emerald-500" />
+        <StatCard label="Kalorien" value={vitalsToday.calories_today || fbToday.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
+        <StatCard label="Aktivzonen" value={displayAZM} unit="min" icon={Zap} color="from-yellow-400 to-orange-500" />
+        <StatCard label="Schlaf" value={displaySleep} unit="h" icon={Moon} color="from-indigo-400 to-purple-500" />
       </motion.div>
 
       {yazioData && (
@@ -208,23 +205,15 @@ export default function Health() {
             </h2>
           </motion.div>
 
-          <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Kalorien (Ziel)" value={calorieGoal} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
-            <StatCard label="Protein (Ziel)" value={proteinGoal} unit="g" icon={Droplets} color="from-cyan-400 to-blue-500" />
-            <StatCard label="Kohlenhydrate (Ziel)" value={carbGoal} unit="g" icon={Apple} color="from-green-400 to-emerald-500" />
-            <StatCard label="Fett (Ziel)" value={fatGoal} unit="g" icon={Droplets} color="from-purple-400 to-pink-500" />
-          </motion.div>
-
-          {consumedCalories > 0 && (
-            <motion.div variants={item} className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Heute gegessen</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <MacroBar label="Kalorien" current={consumedCalories} goal={calorieGoal} color="from-orange-400 to-red-500" />
-                <MacroBar label="Protein" current={consumedProtein} goal={proteinGoal} color="from-cyan-400 to-blue-500" />
-                <MacroBar label="Kohlenhydrate" current={consumedCarbs} goal={carbGoal} color="from-green-400 to-emerald-500" />
-                <MacroBar label="Fett" current={consumedFat} goal={fatGoal} color="from-purple-400 to-pink-500" />
-                {consumedWater > 0 && <MacroBar label="Wasser" current={consumedWater} goal={waterGoal} color="from-blue-400 to-cyan-500" />}
-              </div>
+          {hasYazioData ? (
+            <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              {yazioMacros.map((m) => m.value > 0 && (
+                <StatCard key={m.label} label={m.label} value={Math.round(m.value)} unit={m.unit} icon={Flame} color={m.color} />
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div variants={item} className="glass-card p-4 mb-6 text-center">
+              <p className="text-gray-400 text-sm">Noch keine Mahlzeiten für heute eingetragen.</p>
             </motion.div>
           )}
 
@@ -254,7 +243,7 @@ export default function Health() {
         <motion.div variants={item} className="glass-card p-6 mb-8 text-center">
           <UtensilsCrossed className="w-10 h-10 text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 mb-2">Yazio nicht verbunden</p>
-          <p className="text-xs text-gray-500">Trage deine Yazio-Zugangsdaten im Profil ein, um Ernährungsdaten hier zu sehen.</p>
+          <p className="text-xs text-gray-500">Verbinde Yazio in den Einstellungen, um Ernährungsdaten hier zu sehen.</p>
         </motion.div>
       )}
 

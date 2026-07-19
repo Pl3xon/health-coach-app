@@ -9,14 +9,16 @@ import json
 import time
 import os
 
-from config import GOOGLE_REDIRECT_URI, YAZIO_EMAIL
+from config import GOOGLE_REDIRECT_URI, YAZIO_EMAIL, FITBIT_REDIRECT_URI
 from services.storage import (
     get_or_create_profile, save_profile, get_chat_history, save_chat_message,
     list_users, get_user, create_user, update_user, delete_user,
 )
 from services.manager import (
     get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
-    get_yazio_client, save_yazio_tokens_for_user, get_gemini_coach,
+    get_yazio_client, save_yazio_tokens_for_user,
+    get_fitbit_client, save_fitbit_tokens_for_user,
+    get_gemini_coach,
 )
 from services.scheduler import start_scheduler, stop_scheduler
 
@@ -279,14 +281,35 @@ async def google_fit_status(user_id: str = "default"):
 
 @app.get("/api/google-fit/history")
 async def google_fit_history(user_id: str = "default", days: int = 30):
+    data = None
+
     gf = get_google_fit_client(user_id)
-    if not gf or not gf.access_token:
+    if gf and gf.access_token:
+        try:
+            data = gf.get_health_history(days)
+        except:
+            pass
+
+    fb = get_fitbit_client(user_id)
+    if fb and fb.is_connected():
+        try:
+            fb_data = fb.get_health_history(days)
+            if not data:
+                data = fb_data
+            else:
+                for key in ["heart_rate", "resting_heart_rate", "hrv", "spo2", "active_zone_minutes", "sleep_hours"]:
+                    if key in fb_data:
+                        fb_has_values = any(d.get("value", 0) > 0 for d in fb_data[key])
+                        if fb_has_values:
+                            gf_has_values = any(d.get("value", 0) > 0 for d in data.get(key, []))
+                            if not gf_has_values:
+                                data[key] = fb_data[key]
+        except:
+            pass
+
+    if not data:
         return {"data": None}
-    try:
-        data = gf.get_health_history(days)
-        return {"data": data}
-    except Exception as e:
-        return {"data": None, "error": str(e)}
+    return {"data": data}
 
 
 @app.get("/api/yazio/status")
@@ -333,10 +356,67 @@ async def yazio_diary(user_id: str = "default", date: str = None):
         return {"data": None, "error": str(e)}
 
 
+@app.get("/api/fitbit/url")
+async def fitbit_auth_url(user_id: str = "default"):
+    fb = get_fitbit_client(user_id)
+    if not fb:
+        return {"url": None, "error": "Fitbit nicht initialisiert. FITBIT_CLIENT_ID und FITBIT_CLIENT_SECRET müssen gesetzt sein."}
+    url = fb.get_auth_url()
+    return {"url": url, "user_id": user_id}
+
+
+class FitbitCallback(BaseModel):
+    code: str
+    user_id: str = "default"
+
+
+@app.post("/api/fitbit/callback")
+async def fitbit_callback(cb: FitbitCallback):
+    fb = get_fitbit_client(cb.user_id)
+    if not fb:
+        return {"success": False, "error": "Fitbit nicht initialisiert"}
+    result = fb.exchange_code(cb.code)
+    if result.get("success"):
+        save_fitbit_tokens_for_user(cb.user_id, fb)
+    return result
+
+
+@app.get("/api/fitbit/status")
+async def fitbit_status(user_id: str = "default"):
+    fb = get_fitbit_client(user_id)
+    if not fb:
+        return {"connected": False, "has_config": False}
+    return {"connected": fb.is_connected(), "has_config": True}
+
+
+@app.get("/api/fitbit/vitals")
+async def fitbit_vitals(user_id: str = "default"):
+    fb = get_fitbit_client(user_id)
+    if not fb or not fb.is_connected():
+        return {"data": None}
+    try:
+        data = fb.get_all_vital_data()
+        return {"data": data}
+    except Exception as e:
+        return {"data": None, "error": str(e)}
+
+
+@app.get("/api/fitbit/history")
+async def fitbit_history(user_id: str = "default", days: int = 30):
+    fb = get_fitbit_client(user_id)
+    if not fb or not fb.is_connected():
+        return {"data": None}
+    try:
+        data = fb.get_health_history(days)
+        return {"data": data}
+    except Exception as e:
+        return {"data": None, "error": str(e)}
+
+
 @app.get("/api/dashboard/{user_id}")
 async def get_dashboard(user_id: str):
     profile = get_or_create_profile(user_id)
-    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None, "yazio": None}
+    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None, "fitbit": None, "yazio": None}
 
     renpho = get_renpho_client(user_id)
     if renpho:
@@ -351,6 +431,30 @@ async def get_dashboard(user_id: str):
     if gf and gf.access_token:
         try:
             dashboard["google_fit"] = gf.get_all_vital_data()
+        except:
+            pass
+
+    fb = get_fitbit_client(user_id)
+    if fb and fb.is_connected():
+        try:
+            fb_data = fb.get_all_vital_data()
+            dashboard["fitbit"] = fb_data
+            if not dashboard["google_fit"]:
+                dashboard["google_fit"] = fb_data
+            else:
+                gf_data = dashboard["google_fit"]
+                if not gf_data.get("heart_rate"):
+                    gf_data["heart_rate"] = fb_data.get("resting_heart_rate", 0)
+                if not gf_data.get("sleep_hours"):
+                    gf_data["sleep_hours"] = fb_data.get("sleep_hours", 0)
+                if not gf_data.get("resting_heart_rate"):
+                    gf_data["resting_heart_rate"] = fb_data.get("resting_heart_rate", 0)
+                if not gf_data.get("hrv"):
+                    gf_data["hrv"] = fb_data.get("hrv", 0)
+                if not gf_data.get("spo2"):
+                    gf_data["spo2"] = fb_data.get("spo2", 0)
+                if not gf_data.get("active_zone_minutes"):
+                    gf_data["active_zone_minutes"] = fb_data.get("active_zone_minutes", 0)
         except:
             pass
 

@@ -69,6 +69,21 @@ export const api = {
   getYazioDiary: (userId = 'default', date) =>
     apiCall(`/api/yazio/diary?user_id=${userId}${date ? `&date=${date}` : ''}`),
 
+  getFitbitUrl: (userId = 'default') =>
+    apiCall(`/api/fitbit/url?user_id=${userId}`),
+
+  fitbitCallback: (code, userId = 'default') =>
+    apiCall('/api/fitbit/callback', { method: 'POST', body: JSON.stringify({ code, user_id: userId }) }),
+
+  getFitbitStatus: (userId = 'default') =>
+    apiCall(`/api/fitbit/status?user_id=${userId}`),
+
+  getFitbitVitals: (userId = 'default') =>
+    apiCall(`/api/fitbit/vitals?user_id=${userId}`),
+
+  getFitbitHistory: (userId = 'default', days = 30) =>
+    apiCall(`/api/fitbit/history?user_id=${userId}&days=${days}`),
+
   listUsers: () =>
     apiCall('/api/users'),
 

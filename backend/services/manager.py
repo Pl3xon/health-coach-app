@@ -1,10 +1,11 @@
-from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
-from services.storage import get_user, get_google_fit_tokens, save_google_fit_tokens, get_yazio_tokens, save_yazio_tokens
+from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD, FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET, FITBIT_REDIRECT_URI
+from services.storage import get_user, get_google_fit_tokens, save_google_fit_tokens, get_yazio_tokens, save_yazio_tokens, get_fitbit_tokens, save_fitbit_tokens
 
 
 _repho_clients = {}
 _google_fit_clients = {}
 _yazio_clients = {}
+_fitbit_clients = {}
 
 
 def get_renpho_client(user_id: str):
@@ -111,6 +112,44 @@ def get_yazio_client(user_id: str):
 
 def save_yazio_tokens_for_user(user_id: str, client):
     save_yazio_tokens(user_id, {
+        "access_token": client.access_token,
+        "refresh_token": client.refresh_token,
+        "token_expiry": client.token_expiry,
+    })
+
+
+def get_fitbit_client(user_id: str):
+    if not FITBIT_CLIENT_ID or not FITBIT_CLIENT_SECRET:
+        return None
+
+    cached = _fitbit_clients.get(user_id)
+    if cached:
+        if cached._ensure_token():
+            save_fitbit_tokens(user_id, {
+                "access_token": cached.access_token,
+                "refresh_token": cached.refresh_token,
+                "token_expiry": cached.token_expiry,
+            })
+            return cached
+        del _fitbit_clients[user_id]
+
+    tokens = get_fitbit_tokens(user_id)
+    access_token = tokens.get("access_token") if tokens else None
+    refresh_token = tokens.get("refresh_token") if tokens else None
+    token_expiry = tokens.get("token_expiry", 0) if tokens else 0
+
+    from services.fitbit import FitbitClient
+    client = FitbitClient(
+        FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET, FITBIT_REDIRECT_URI,
+        access_token=access_token, refresh_token=refresh_token,
+        token_expiry=token_expiry, user_id=user_id,
+    )
+    _fitbit_clients[user_id] = client
+    return client
+
+
+def save_fitbit_tokens_for_user(user_id: str, client):
+    save_fitbit_tokens(user_id, {
         "access_token": client.access_token,
         "refresh_token": client.refresh_token,
         "token_expiry": client.token_expiry,

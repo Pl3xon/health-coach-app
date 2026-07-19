@@ -5,6 +5,7 @@ from services.storage import list_users
 from services.manager import (
     get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
     get_yazio_client, save_yazio_tokens_for_user,
+    get_fitbit_client, save_fitbit_tokens_for_user,
 )
 
 TZ = timezone(timedelta(hours=2))
@@ -53,6 +54,17 @@ async def refresh_all_users():
                         print(f"[Scheduler] {uid}: Yazio Refresh fehlgeschlagen")
                 except Exception as e:
                     print(f"[Scheduler] {uid}: Yazio Fehler: {e}")
+
+            fb = get_fitbit_client(uid)
+            if fb and fb.refresh_token:
+                try:
+                    if fb.refresh_access_token():
+                        save_fitbit_tokens_for_user(uid, fb)
+                        print(f"[Scheduler] {uid}: Fitbit Token Refresh OK")
+                    else:
+                        print(f"[Scheduler] {uid}: Fitbit Refresh fehlgeschlagen")
+                except Exception as e:
+                    print(f"[Scheduler] {uid}: Fitbit Fehler: {e}")
 
         print(f"[Scheduler] Refresh abgeschlossen fuer {len(users)} User(s)")
     finally:
