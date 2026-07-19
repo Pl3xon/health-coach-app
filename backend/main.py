@@ -506,12 +506,14 @@ async def debug_health(user_id: str = "default"):
         list_url = f"{base}/users/me/dataTypes/{dt}/dataPoints"
         list_resp = c.get(list_url, params={"filter": filt} if filt else None, headers=headers)
 
-        reconcile_url = f"{base}/users/me/dataTypes/{dt}/dataPoints:reconcile"
-        reconcile_resp = c.get(reconcile_url, params={"dataSourceFamily": wearable_family, "filter": filt} if filt else {"dataSourceFamily": wearable_family}, headers=headers)
+        sample = None
+        if list_resp.status_code == 200:
+            points = list_resp.json().get("dataPoints", [])
+            if points:
+                sample = points[0]
 
         debug["raw_responses"][dt] = {
-            "list": {"status": list_resp.status_code, "count": len(list_resp.json().get("dataPoints", [])) if list_resp.status_code == 200 else None, "error": list_resp.text[:500] if list_resp.status_code != 200 else None},
-            "reconcile": {"status": reconcile_resp.status_code, "count": len(reconcile_resp.json().get("dataPoints", [])) if reconcile_resp.status_code == 200 else None, "error": reconcile_resp.text[:500] if reconcile_resp.status_code != 200 else None},
+            "list": {"status": list_resp.status_code, "count": len(list_resp.json().get("dataPoints", [])) if list_resp.status_code == 200 else None, "error": list_resp.text[:500] if list_resp.status_code != 200 else None, "sample": sample},
         }
 
     return debug
