@@ -86,4 +86,7 @@ export const api = {
 
   deleteUser: (userId) =>
     apiCall(`/api/users/${userId}`, { method: 'DELETE' }),
+
+  refreshAll: () =>
+    apiCall('/api/refresh', { method: 'POST' }),
 };

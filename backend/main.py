@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
+from contextlib import asynccontextmanager
 import json
 import time
 import os
@@ -17,8 +18,17 @@ from services.manager import (
     get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
     get_yazio_client, save_yazio_tokens_for_user, get_gemini_coach,
 )
+from services.scheduler import start_scheduler, stop_scheduler
 
-app = FastAPI(title="VitalCoach", version="3.0.0")
+
+@asynccontextmanager
+async def lifespan(app):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="VitalCoach", version="3.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,8 +43,15 @@ app.add_middleware(
 async def health_check():
     return {
         "status": "ok",
-        "version": "3.0.0",
+        "version": "3.1.0",
     }
+
+
+@app.post("/api/refresh")
+async def manual_refresh():
+    from services.scheduler import refresh_all_users
+    await refresh_all_users()
+    return {"success": True}
 
 
 class UserCreate(BaseModel):
