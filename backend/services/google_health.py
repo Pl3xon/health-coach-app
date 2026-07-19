@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 class GoogleHealthClient:
     BASE_URL = "https://health.googleapis.com/v4"
     TOKEN_URL = "https://oauth2.googleapis.com/token"
+    WEARABLE_FAMILY = "users/me/dataSourceFamilies/google-wearables"
     SCOPES = [
         "https://www.googleapis.com/auth/fitness.activity.read",
         "https://www.googleapis.com/auth/fitness.heart_rate.read",
@@ -103,66 +104,54 @@ class GoogleHealthClient:
             "Accept": "application/json",
         }
 
-    def _get(self, path: str, params: dict = None) -> dict | None:
-        if not self._ensure_token():
-            return None
-        try:
-            url = f"{self.BASE_URL}{path}"
-            resp = self.client.get(
-                url,
-                params=params,
-                headers=self._get_headers(),
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            return None
-        except Exception:
-            return None
-
     def _tz(self):
         return timezone(timedelta(hours=2))
 
     def is_connected(self) -> bool:
         return self._ensure_token()
 
+    def _reconcile(self, data_type: str, filter_str: str = "") -> list:
+        path = f"/users/me/dataTypes/{data_type}/dataPoints:reconcile"
+        params = {"dataSourceFamily": self.WEARABLE_FAMILY}
+        if filter_str:
+            params["filter"] = filter_str
+        if not self._ensure_token():
+            return []
+        try:
+            url = f"{self.BASE_URL}{path}"
+            resp = self.client.get(url, params=params, headers=self._get_headers())
+            if resp.status_code == 200:
+                return resp.json().get("dataPoints", [])
+            return []
+        except Exception:
+            return []
+
     def _list_data_points(self, data_type: str, filter_str: str = "") -> list:
         path = f"/users/me/dataTypes/{data_type}/dataPoints"
         params = {}
         if filter_str:
             params["filter"] = filter_str
-        data = self._get(path, params=params)
-        if data:
-            return data.get("dataPoints", [])
-        return []
-
-    def _daily_rollup(self, data_type: str, start_date: str, end_date: str) -> list:
-        sy, sm, sd = start_date.split("-")
-        ey, em, ed = end_date.split("-")
-        body = {
-            "range": {
-                "start": {"date": {"year": int(sy), "month": int(sm), "day": int(sd)}, "time": {"hours": 0, "minutes": 0}},
-                "end": {"date": {"year": int(ey), "month": int(em), "day": int(ed)}, "time": {"hours": 23, "minutes": 59, "seconds": 59}},
-            },
-            "windowSizeDays": 1,
-        }
         if not self._ensure_token():
             return []
         try:
-            resp = self.client.post(
-                f"{self.BASE_URL}/users/me/dataTypes/{data_type}/dataPoints:dailyRollUp",
-                json=body,
-                headers=self._get_headers(),
-            )
+            url = f"{self.BASE_URL}{path}"
+            resp = self.client.get(url, params=params, headers=self._get_headers())
             if resp.status_code == 200:
-                return resp.json().get("rollupDataPoints", [])
+                return resp.json().get("dataPoints", [])
             return []
         except Exception:
             return []
 
+    def _get_data(self, data_type: str, filter_str: str = "") -> list:
+        points = self._reconcile(data_type, filter_str)
+        if not points:
+            points = self._list_data_points(data_type, filter_str)
+        return points
+
     def get_steps_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("steps", f'steps.interval.civil_start_time >= "{today}"')
+        points = self._get_data("steps", f'steps.interval.civil_start_time >= "{today}"')
         total = 0
         for p in points:
             steps = p.get("steps", {})
@@ -172,7 +161,7 @@ class GoogleHealthClient:
     def get_calories_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("active-energy-burned", f'active_energy_burned.interval.civil_start_time >= "{today}"')
+        points = self._get_data("active-energy-burned", f'active_energy_burned.interval.civil_start_time >= "{today}"')
         total = 0.0
         for p in points:
             cal = p.get("activeEnergyBurned", {})
@@ -182,7 +171,7 @@ class GoogleHealthClient:
     def get_resting_heart_rate_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"')
+        points = self._get_data("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"')
         for p in reversed(points):
             rhr = p.get("dailyRestingHeartRate", {})
             val = rhr.get("bpm", 0)
@@ -193,7 +182,7 @@ class GoogleHealthClient:
     def get_hrv_today(self) -> float:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("daily-heart-rate-variability", f'daily_heart_rate_variability.civil_start_time >= "{today}"')
+        points = self._get_data("daily-heart-rate-variability", f'daily_heart_rate_variability.civil_start_time >= "{today}"')
         for p in reversed(points):
             hrv = p.get("dailyHeartRateVariability", {})
             rmssd = hrv.get("rmssdMilliseconds", 0)
@@ -204,7 +193,7 @@ class GoogleHealthClient:
     def get_spo2_today(self) -> float:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"')
+        points = self._get_data("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"')
         for p in reversed(points):
             spo2 = p.get("dailyOxygenSaturation", {})
             val = spo2.get("percentage", 0)
@@ -215,7 +204,7 @@ class GoogleHealthClient:
     def get_sleep_today(self) -> dict:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("sleep", f'sleep.interval.civil_end_time >= "{today}"')
+        points = self._get_data("sleep", f'sleep.interval.civil_end_time >= "{today}"')
         for p in points:
             sleep_data = p.get("sleep", {})
             summary = sleep_data.get("summary", {})
@@ -235,7 +224,7 @@ class GoogleHealthClient:
     def get_active_zone_minutes_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("active-zone-minutes", f'active_zone_minutes.interval.civil_start_time >= "{today}"')
+        points = self._get_data("active-zone-minutes", f'active_zone_minutes.interval.civil_start_time >= "{today}"')
         total = 0
         for p in points:
             azm = p.get("activeZoneMinutes", {})
@@ -245,7 +234,7 @@ class GoogleHealthClient:
     def get_heart_rate_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._list_data_points("heart-rate", f'heart_rate.observation_time.physical_time >= "{today}T00:00:00Z"')
+        points = self._get_data("heart-rate", f'heart_rate.observation_time.physical_time >= "{today}T00:00:00Z"')
         latest = 0
         for p in points:
             hr = p.get("heartRate", {})
@@ -273,35 +262,47 @@ class GoogleHealthClient:
         end_date = now.strftime("%Y-%m-%d")
         start_date = (now - timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
-        steps_rollup = self._daily_rollup("steps", start_date, end_date)
+        steps_points = self._get_data("steps", f'steps.interval.civil_start_time >= "{start_date}"')
+        steps_by_date = {}
+        for p in steps_points:
+            interval = p.get("steps", {}).get("interval", p.get("interval", {}))
+            civil = interval.get("civilStartTime", {})
+            dt = civil.get("date", {})
+            date_str = f"{dt.get('year', 0)}-{dt.get('month', 0):02d}-{dt.get('day', 0):02d}"
+            val = int(p.get("steps", {}).get("count", 0))
+            steps_by_date[date_str] = steps_by_date.get(date_str, 0) + val
         steps_history = []
-        for r in steps_rollup:
-            dt = r.get("civilStartTime", {}).get("date", {})
-            date_str = f"{dt.get('year', 0)}-{dt.get('month', 0):02d}-{dt.get('day', 0):02d}"
-            val = int(r.get("steps", {}).get("countSum", 0))
-            steps_history.append({"date": date_str, "value": val})
+        for i in range(days):
+            d = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+            steps_history.append({"date": d, "value": steps_by_date.get(d, 0)})
 
-        cal_rollup = self._daily_rollup("total-calories", start_date, end_date)
+        cal_points = self._get_data("active-energy-burned", f'active_energy_burned.interval.civil_start_time >= "{start_date}"')
+        cal_by_date = {}
+        for p in cal_points:
+            interval = p.get("activeEnergyBurned", {}).get("interval", p.get("interval", {}))
+            civil = interval.get("civilStartTime", {})
+            dt = civil.get("date", {})
+            date_str = f"{dt.get('year', 0)}-{dt.get('month', 0):02d}-{dt.get('day', 0):02d}"
+            val = float(p.get("activeEnergyBurned", {}).get("kcal", 0))
+            cal_by_date[date_str] = cal_by_date.get(date_str, 0) + val
         calories_history = []
-        for r in cal_rollup:
-            dt = r.get("civilStartTime", {}).get("date", {})
-            date_str = f"{dt.get('year', 0)}-{dt.get('month', 0):02d}-{dt.get('day', 0):02d}"
-            val = round(float(r.get("totalCalories", {}).get("kcalSum", 0)))
-            calories_history.append({"date": date_str, "value": val})
+        for i in range(days):
+            d = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+            calories_history.append({"date": d, "value": round(cal_by_date.get(d, 0))})
 
-        rhr_points = self._list_data_points("daily-resting-heart-rate",
+        rhr_points = self._get_data("daily-resting-heart-rate",
             f'daily_resting_heart_rate.civil_start_time >= "{start_date}"')
         resting_hr_history = self._build_daily_from_points(rhr_points, "dailyRestingHeartRate", "bpm", days, start_date)
 
-        hrv_points = self._list_data_points("daily-heart-rate-variability",
+        hrv_points = self._get_data("daily-heart-rate-variability",
             f'daily_heart_rate_variability.civil_start_time >= "{start_date}"')
         hrv_history = self._build_daily_from_points(hrv_points, "dailyHeartRateVariability", "rmssdMilliseconds", days, start_date)
 
-        spo2_points = self._list_data_points("daily-oxygen-saturation",
+        spo2_points = self._get_data("daily-oxygen-saturation",
             f'daily_oxygen_saturation.civil_start_time >= "{start_date}"')
         spo2_history = self._build_daily_from_points(spo2_points, "dailyOxygenSaturation", "percentage", days, start_date)
 
-        azm_points = self._list_data_points("active-zone-minutes",
+        azm_points = self._get_data("active-zone-minutes",
             f'active_zone_minutes.interval.civil_start_time >= "{start_date}"')
         azm_history = []
         azm_by_date = {}

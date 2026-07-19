@@ -403,32 +403,21 @@ async def debug_health(user_id: str = "default"):
     gh = get_google_health_client(user_id)
     if not gh:
         return {"error": "Google Health Client nicht vorhanden", "has_config": bool(GOOGLE_CLIENT_ID)}
-    connected = gh.is_connected()
-    if not connected:
-        return {"error": "Nicht verbunden", "has_refresh_token": bool(gh.refresh_token)}
-
     if not gh._ensure_token():
-        return {"error": "Token refresh failed"}
+        return {"error": "Token fehlt oder Refresh fehlgeschlagen", "has_refresh_token": bool(gh.refresh_token)}
 
     headers = gh._get_headers()
     base = gh.BASE_URL
+    wearable_family = "users/me/dataSourceFamilies/google-wearables"
 
     debug = {"token_ok": True, "raw_responses": {}}
 
     import httpx as _hx
     c = _hx.Client(timeout=15.0)
 
-    data_types_to_try = [
-        "daily-resting-heart-rate",
-        "heart-rate",
-        "daily-heart-rate-variability",
-        "daily-oxygen-saturation",
-        "sleep",
-        "active-zone-minutes",
-        "steps",
-        "active-energy-burned",
-        "total-calories",
-    ]
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    tz = _tz(_td(hours=2))
+    today = _dt.now(tz).strftime("%Y-%m-%d")
 
     list_resp = c.get(f"{base}/users/me/dataTypes", headers=headers)
     debug["raw_responses"]["_dataTypes_list"] = {
@@ -436,12 +425,27 @@ async def debug_health(user_id: str = "default"):
         "body": list_resp.text[:3000],
     }
 
-    for dt in data_types_to_try:
-        url = f"{base}/users/me/dataTypes/{dt}/dataPoints"
-        resp = c.get(url, headers=headers)
+    data_types_to_try = [
+        ("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"'),
+        ("heart-rate", f'heart_rate.observation_time.physical_time >= "{today}T00:00:00Z"'),
+        ("daily-heart-rate-variability", f'daily_heart_rate_variability.civil_start_time >= "{today}"'),
+        ("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"'),
+        ("sleep", f'sleep.interval.civil_end_time >= "{today}"'),
+        ("active-zone-minutes", f'active_zone_minutes.interval.civil_start_time >= "{today}"'),
+        ("steps", f'steps.interval.civil_start_time >= "{today}"'),
+        ("active-energy-burned", f'active_energy_burned.interval.civil_start_time >= "{today}"'),
+    ]
+
+    for dt, filt in data_types_to_try:
+        list_url = f"{base}/users/me/dataTypes/{dt}/dataPoints"
+        list_resp = c.get(list_url, params={"filter": filt} if filt else None, headers=headers)
+
+        reconcile_url = f"{base}/users/me/dataTypes/{dt}/dataPoints:reconcile"
+        reconcile_resp = c.get(reconcile_url, params={"dataSourceFamily": wearable_family, "filter": filt} if filt else {"dataSourceFamily": wearable_family}, headers=headers)
+
         debug["raw_responses"][dt] = {
-            "status": resp.status_code,
-            "body": resp.text[:2000],
+            "list": {"status": list_resp.status_code, "count": len(list_resp.json().get("dataPoints", [])) if list_resp.status_code == 200 else None, "error": list_resp.text[:500] if list_resp.status_code != 200 else None},
+            "reconcile": {"status": reconcile_resp.status_code, "count": len(reconcile_resp.json().get("dataPoints", [])) if reconcile_resp.status_code == 200 else None, "error": reconcile_resp.text[:500] if reconcile_resp.status_code != 200 else None},
         }
 
     return debug
