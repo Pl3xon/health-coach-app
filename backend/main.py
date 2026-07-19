@@ -407,52 +407,44 @@ async def debug_health(user_id: str = "default"):
     if not connected:
         return {"error": "Nicht verbunden", "has_refresh_token": bool(gh.refresh_token)}
 
-    results = {}
-    try:
-        results["resting_hr"] = gh.get_resting_heart_rate_today()
-    except Exception as e:
-        results["resting_hr_error"] = str(e)
-    try:
-        results["hrv"] = gh.get_hrv_today()
-    except Exception as e:
-        results["hrv_error"] = str(e)
-    try:
-        results["spo2"] = gh.get_spo2_today()
-    except Exception as e:
-        results["spo2_error"] = str(e)
-    try:
-        results["sleep"] = gh.get_sleep_today()
-    except Exception as e:
-        results["sleep_error"] = str(e)
-    try:
-        results["azm"] = gh.get_active_zone_minutes_today()
-    except Exception as e:
-        results["azm_error"] = str(e)
-    try:
-        results["steps"] = gh.get_steps_today()
-    except Exception as e:
-        results["steps_error"] = str(e)
-    try:
-        results["heart_rate"] = gh.get_heart_rate_today()
-    except Exception as e:
-        results["heart_rate_error"] = str(e)
+    if not gh._ensure_token():
+        return {"error": "Token refresh failed"}
 
-    raw_rhr = None
-    try:
-        from datetime import datetime, timezone, timedelta
-        tz = timezone(timedelta(hours=2))
-        today = datetime.now(tz).strftime("%Y-%m-%d")
-        raw_rhr = gh._list_data_points("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"')
-    except Exception as e:
-        raw_rhr = str(e)
+    headers = gh._get_headers()
+    base = gh.BASE_URL
 
-    raw_spo2 = None
-    try:
-        raw_spo2 = gh._list_data_points("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"')
-    except Exception as e:
-        raw_spo2 = str(e)
+    debug = {"token_ok": True, "raw_responses": {}}
 
-    return {"connected": True, "results": results, "raw_rhr_count": len(raw_rhr) if isinstance(raw_rhr, list) else raw_rhr, "raw_spo2_count": len(raw_spo2) if isinstance(raw_spo2, list) else raw_spo2}
+    import httpx as _hx
+    c = _hx.Client(timeout=15.0)
+
+    data_types_to_try = [
+        "daily-resting-heart-rate",
+        "heart-rate",
+        "daily-heart-rate-variability",
+        "daily-oxygen-saturation",
+        "sleep",
+        "active-zone-minutes",
+        "steps",
+        "active-energy-burned",
+        "total-calories",
+    ]
+
+    list_resp = c.get(f"{base}/users/me/dataTypes", headers=headers)
+    debug["raw_responses"]["_dataTypes_list"] = {
+        "status": list_resp.status_code,
+        "body": list_resp.text[:3000],
+    }
+
+    for dt in data_types_to_try:
+        url = f"{base}/users/me/dataTypes/{dt}/dataPoints"
+        resp = c.get(url, headers=headers)
+        debug["raw_responses"][dt] = {
+            "status": resp.status_code,
+            "body": resp.text[:2000],
+        }
+
+    return debug
 
 
 @app.get("/api/dashboard/{user_id}")
