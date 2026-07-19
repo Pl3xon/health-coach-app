@@ -63,4 +63,14 @@ export const api = {
   
   getGoogleFitStatus: () => 
     apiCall('/api/google-fit/status'),
+
+  // Yazio
+  getYazioStatus: () => 
+    apiCall('/api/yazio/status'),
+  
+  getYazioDaily: (date) => 
+    apiCall(`/api/yazio/daily${date ? `?date=${date}` : ''}`),
+  
+  getYazioDiary: (date) => 
+    apiCall(`/api/yazio/diary${date ? `?date=${date}` : ''}`),
 };

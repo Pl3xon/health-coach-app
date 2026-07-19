@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, UtensilsCrossed } from 'lucide-react'
 import { api } from '../services/api'
 
 const container = {
@@ -16,6 +16,7 @@ const item = {
 export default function Vitals() {
   const [renphoConnected, setRenphoConnected] = useState(false)
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
+  const [yazioConnected, setYazioConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [renphoData, setRenphoData] = useState(null)
   const [connecting, setConnecting] = useState(false)
@@ -24,13 +25,15 @@ export default function Vitals() {
   const checkConnections = async () => {
     setLoading(true)
     try {
-      const [renphoRes, gfStatus, renphoLatest] = await Promise.all([
+      const [renphoRes, gfStatus, renphoLatest, yazioRes] = await Promise.all([
         api.getRenphoStatus(),
         api.getGoogleFitStatus(),
-        api.getRenphoLatest()
+        api.getRenphoLatest(),
+        api.getYazioStatus()
       ])
       setRenphoConnected(renphoRes.connected)
       setGoogleFitConnected(gfStatus.connected || false)
+      setYazioConnected(yazioRes.connected || false)
       if (renphoLatest.measurement) setRenphoData(renphoLatest.measurement)
     } catch (error) {
       console.error('Error checking connections:', error)
@@ -101,7 +104,7 @@ export default function Vitals() {
         </motion.button>
       </motion.div>
 
-      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className={`glass-card p-5 ${renphoConnected ? 'neon-glow-green' : ''}`}>
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${renphoConnected ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
@@ -129,6 +132,17 @@ export default function Vitals() {
                 Verbinden
               </button>
             )}
+          </div>
+        </div>
+        <div className={`glass-card p-5 ${yazioConnected ? 'neon-glow' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${yazioConnected ? 'bg-gradient-to-br from-orange-400 to-red-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
+              {yazioConnected ? <UtensilsCrossed className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
+            </div>
+            <div>
+              <h3 className="font-semibold">Yazio</h3>
+              <p className={`text-sm ${yazioConnected ? 'text-orange-400' : 'text-gray-400'}`}>{yazioConnected ? 'Verbunden' : 'Nicht verbunden'}</p>
+            </div>
           </div>
         </div>
       </motion.div>

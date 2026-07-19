@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { UtensilsCrossed, Flame, Apple, Droplets, Loader2, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -17,12 +17,29 @@ const item = {
 export default function Nutrition() {
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [macros] = useState({
-    calories: 2200,
-    protein: 165,
-    carbs: 220,
-    fat: 73
-  })
+  const [yazioData, setYazioData] = useState(null)
+  const [yazioDiary, setYazioDiary] = useState(null)
+  const [loadingYazio, setLoadingYazio] = useState(false)
+
+  useEffect(() => {
+    loadYazioData()
+  }, [])
+
+  const loadYazioData = async () => {
+    setLoadingYazio(true)
+    try {
+      const [summaryRes, diaryRes] = await Promise.all([
+        api.getYazioDaily(),
+        api.getYazioDiary()
+      ])
+      if (summaryRes.data) setYazioData(summaryRes.data)
+      if (diaryRes.data) setYazioDiary(diaryRes.data)
+    } catch (error) {
+      console.error('Error loading Yazio data:', error)
+    } finally {
+      setLoadingYazio(false)
+    }
+  }
 
   const generatePlan = async () => {
     setLoading(true)
@@ -36,19 +53,32 @@ export default function Nutrition() {
     }
   }
 
+  const goals = yazioData?.goals || {}
+  const summaryGoals = {
+    calories: goals['energy.energy'] || 2200,
+    protein: goals['nutrient.protein'] || 165,
+    carbs: goals['nutrient.carb'] || 220,
+    fat: goals['nutrient.fat'] || 73,
+  }
+
   const macroCards = [
-    { label: 'Kalorien', value: macros.calories, unit: 'kcal', icon: Flame, color: 'from-orange-400 to-red-500', percent: 100 },
-    { label: 'Protein', value: macros.protein, unit: 'g', icon: Droplets, color: 'from-cyan-400 to-blue-500', percent: 30 },
-    { label: 'Kohlenhydrate', value: macros.carbs, unit: 'g', icon: Apple, color: 'from-green-400 to-emerald-500', percent: 40 },
-    { label: 'Fett', value: macros.fat, unit: 'g', icon: Droplets, color: 'from-purple-400 to-pink-500', percent: 30 },
+    { label: 'Kalorien', value: summaryGoals.calories, unit: 'kcal', icon: Flame, color: 'from-orange-400 to-red-500', percent: 100 },
+    { label: 'Protein', value: summaryGoals.protein, unit: 'g', icon: Droplets, color: 'from-cyan-400 to-blue-500', percent: 30 },
+    { label: 'Kohlenhydrate', value: summaryGoals.carbs, unit: 'g', icon: Apple, color: 'from-green-400 to-emerald-500', percent: 40 },
+    { label: 'Fett', value: summaryGoals.fat, unit: 'g', icon: Droplets, color: 'from-purple-400 to-pink-500', percent: 30 },
   ]
 
-  const mealSuggestions = [
-    { time: 'Frühstück', items: ['Haferflocken mit Beeren', 'Griechischer Joghurt', 'Protein-Shake'], calories: 450, color: 'from-yellow-400 to-orange-500' },
-    { time: 'Mittagessen', items: ['Hähnchenbrust', 'Vollkornreis', 'Gemüse'], calories: 650, color: 'from-green-400 to-emerald-500' },
-    { time: 'Abendessen', items: ['Lachs', 'Süßkartoffel', 'Salat'], calories: 550, color: 'from-cyan-400 to-blue-500' },
-    { time: 'Snacks', items: ['Nüsse', 'Protein-Riegel', 'Obst'], calories: 350, color: 'from-purple-400 to-pink-500' },
-  ]
+  const mealGroups = {}
+  if (yazioDiary && Array.isArray(yazioDiary)) {
+    yazioDiary.forEach(item => {
+      const meal = item.daytime || 'snack'
+      if (!mealGroups[meal]) mealGroups[meal] = []
+      mealGroups[meal].push(item)
+    })
+  }
+
+  const mealLabels = { breakfast: 'Frühstück', lunch: 'Mittagessen', dinner: 'Abendessen', snack: 'Snacks' }
+  const mealColors = { breakfast: 'from-yellow-400 to-orange-500', lunch: 'from-green-400 to-emerald-500', dinner: 'from-cyan-400 to-blue-500', snack: 'from-purple-400 to-pink-500' }
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="p-6 lg:p-8">
@@ -59,10 +89,15 @@ export default function Nutrition() {
           </h1>
           <p className="text-gray-400">Dein personalisierter Ernährungsplan</p>
         </div>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={generatePlan} disabled={loading} className="btn-primary flex items-center gap-2">
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-          Plan erstellen
-        </motion.button>
+        <div className="flex gap-2">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={loadYazioData} disabled={loadingYazio} className="btn-secondary flex items-center gap-2">
+            <RefreshCw className={`w-5 h-5 ${loadingYazio ? 'animate-spin' : ''}`} />
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={generatePlan} disabled={loading} className="btn-primary flex items-center gap-2">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+            Plan erstellen
+          </motion.button>
+        </div>
       </motion.div>
 
       <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -83,30 +118,59 @@ export default function Nutrition() {
         ))}
       </motion.div>
 
-      <motion.div variants={item} className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Tagesplan</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {mealSuggestions.map((meal) => (
-            <motion.div key={meal.time} variants={item} whileHover={{ scale: 1.02, y: -5 }} className="glass-card overflow-hidden">
-              <div className={`h-2 bg-gradient-to-r ${meal.color}`} />
-              <div className="p-5">
-                <h3 className="font-semibold text-lg mb-2">{meal.time}</h3>
-                <ul className="space-y-1 mb-3">
-                  {meal.items.map((item, i) => (
-                    <li key={i} className="text-sm text-gray-300 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-sm text-gray-400">
-                  <span className="text-cyan-400 font-semibold">{meal.calories}</span> kcal
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+      {yazioDiary && yazioDiary.length > 0 ? (
+        <motion.div variants={item} className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Heute gegessen</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Object.entries(mealGroups).map(([meal, items]) => (
+              <motion.div key={meal} variants={item} whileHover={{ scale: 1.02, y: -5 }} className="glass-card overflow-hidden">
+                <div className={`h-2 bg-gradient-to-r ${mealColors[meal] || mealColors.snack}`} />
+                <div className="p-5">
+                  <h3 className="font-semibold text-lg mb-2">{mealLabels[meal] || meal}</h3>
+                  <ul className="space-y-1 mb-3">
+                    {items.slice(0, 5).map((item, i) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                        {item.name || `Eintrag ${i + 1}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div variants={item} className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Tagesplan</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { time: 'Frühstück', items: ['Haferflocken mit Beeren', 'Griechischer Joghurt', 'Protein-Shake'], calories: 450, color: 'from-yellow-400 to-orange-500' },
+              { time: 'Mittagessen', items: ['Hähnchenbrust', 'Vollkornreis', 'Gemüse'], calories: 650, color: 'from-green-400 to-emerald-500' },
+              { time: 'Abendessen', items: ['Lachs', 'Süßkartoffel', 'Salat'], calories: 550, color: 'from-cyan-400 to-blue-500' },
+              { time: 'Snacks', items: ['Nüsse', 'Protein-Riegel', 'Obst'], calories: 350, color: 'from-purple-400 to-pink-500' },
+            ].map((meal) => (
+              <motion.div key={meal.time} variants={item} whileHover={{ scale: 1.02, y: -5 }} className="glass-card overflow-hidden">
+                <div className={`h-2 bg-gradient-to-r ${meal.color}`} />
+                <div className="p-5">
+                  <h3 className="font-semibold text-lg mb-2">{meal.time}</h3>
+                  <ul className="space-y-1 mb-3">
+                    {meal.items.map((item, i) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-sm text-gray-400">
+                    <span className="text-cyan-400 font-semibold">{meal.calories}</span> kcal
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {plan && (
         <motion.div variants={item} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">

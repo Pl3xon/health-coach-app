@@ -10,7 +10,7 @@ import os
 
 from config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_AUTH_CODE,
-    GEMINI_API_KEY, RENPHO_EMAIL, RENPHO_PASSWORD
+    GEMINI_API_KEY, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
 )
 from services.storage import get_or_create_profile, save_profile, get_chat_history, save_chat_message
 
@@ -28,13 +28,14 @@ app.add_middleware(
 renpho_client = None
 google_fit_client = None
 gemini_coach = None
+yazio_client = None
 
 
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://health-coach-app-sable.vercel.app/auth/google-fit")
 
 
 def init_services():
-    global renpho_client, google_fit_client, gemini_coach
+    global renpho_client, google_fit_client, gemini_coach, yazio_client
     try:
         from services.renpho import RenphoClient
         renpho_client = RenphoClient(RENPHO_EMAIL, RENPHO_PASSWORD)
@@ -52,6 +53,14 @@ def init_services():
         gemini_coach = GeminiCoach(GEMINI_API_KEY)
     except Exception as e:
         print(f"Gemini init error: {e}")
+
+    try:
+        from services.yazio import YazioClient
+        yazio_client = YazioClient()
+        if YAZIO_EMAIL and YAZIO_PASSWORD:
+            yazio_client.login(YAZIO_EMAIL, YAZIO_PASSWORD)
+    except Exception as e:
+        print(f"Yazio init error: {e}")
 
 
 init_services()
@@ -244,10 +253,47 @@ async def debug_google_fit_today():
         return {"error": str(e)}
 
 
+@app.get("/api/yazio/status")
+async def yazio_status():
+    if not yazio_client:
+        return {"connected": False}
+    return {"connected": yazio_client.is_connected()}
+
+
+@app.get("/api/yazio/daily")
+async def yazio_daily(date: str = None):
+    if not yazio_client:
+        return {"data": None, "error": "Yazio nicht initialisiert"}
+    if not date:
+        from datetime import datetime, timezone, timedelta
+        tz = timezone(timedelta(hours=2))
+        date = datetime.now(tz).strftime("%Y-%m-%d")
+    try:
+        data = yazio_client.get_daily_summary(date)
+        return {"data": data}
+    except Exception as e:
+        return {"data": None, "error": str(e)}
+
+
+@app.get("/api/yazio/diary")
+async def yazio_diary(date: str = None):
+    if not yazio_client:
+        return {"data": None, "error": "Yazio nicht initialisiert"}
+    if not date:
+        from datetime import datetime, timezone, timedelta
+        tz = timezone(timedelta(hours=2))
+        date = datetime.now(tz).strftime("%Y-%m-%d")
+    try:
+        data = yazio_client.get_consumed_items(date)
+        return {"data": data}
+    except Exception as e:
+        return {"data": None, "error": str(e)}
+
+
 @app.get("/api/dashboard/{user_id}")
 async def get_dashboard(user_id: str):
     profile = get_or_create_profile(user_id)
-    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None}
+    dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None, "yazio": None}
 
     if renpho_client:
         try:
@@ -261,6 +307,16 @@ async def get_dashboard(user_id: str):
         try:
             gf_data = google_fit_client.get_all_vital_data()
             dashboard["google_fit"] = gf_data
+        except:
+            pass
+
+    if yazio_client and yazio_client.is_connected():
+        try:
+            from datetime import datetime, timezone, timedelta
+            tz = timezone(timedelta(hours=2))
+            today = datetime.now(tz).strftime("%Y-%m-%d")
+            yazio_data = yazio_client.get_daily_summary(today)
+            dashboard["yazio"] = yazio_data
         except:
             pass
 
