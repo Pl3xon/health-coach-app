@@ -116,7 +116,7 @@ function AppLayout() {
         />
       )}
 
-      <main className="flex-1 min-h-screen">
+      <main className="flex-1 min-h-screen" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <AnimatePresence mode="wait">
           <Routes>
             <Route path="/" element={<Dashboard />} />

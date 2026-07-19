@@ -108,9 +108,9 @@ export default function Health() {
     setLoading(true)
     try {
       const [historyRes, dashboardRes, yazioRes] = await Promise.all([
-        api.getGoogleFitHistory(30),
+        api.getGoogleFitHistory(currentUser.id, 30),
         api.getDashboard(currentUser.id),
-        api.getYazioDaily()
+        api.getYazioDaily(currentUser.id)
       ])
       if (historyRes.data) setHistory(historyRes.data)
       if (dashboardRes.google_fit) setToday(dashboardRes.google_fit)

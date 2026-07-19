@@ -129,3 +129,25 @@ def delete_user(user_id: str) -> bool:
         return True
     return False
 
+
+def get_google_fit_tokens(user_id: str) -> dict | None:
+    tokens = load("google_fit_tokens.json", {})
+    return tokens.get(user_id)
+
+
+def save_google_fit_tokens(user_id: str, tokens: dict):
+    all_tokens = load("google_fit_tokens.json", {})
+    all_tokens[user_id] = tokens
+    save("google_fit_tokens.json", all_tokens)
+
+
+def get_yazio_tokens(user_id: str) -> dict | None:
+    tokens = load("yazio_tokens.json", {})
+    return tokens.get(user_id)
+
+
+def save_yazio_tokens(user_id: str, tokens: dict):
+    all_tokens = load("yazio_tokens.json", {})
+    all_tokens[user_id] = tokens
+    save("yazio_tokens.json", all_tokens)
+

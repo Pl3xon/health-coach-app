@@ -18,81 +18,72 @@ async function apiCall(endpoint, options = {}) {
 }
 
 export const api = {
-  // Profile
-  getProfile: (userId = 'default') => 
+  getProfile: (userId = 'default') =>
     apiCall(`/api/profile/${userId}`),
-  
-  updateProfile: (profile) => 
+
+  updateProfile: (profile) =>
     apiCall('/api/profile', { method: 'POST', body: JSON.stringify(profile) }),
 
-  // Chat
-  sendMessage: (message, userId = 'default') => 
+  sendMessage: (message, userId = 'default') =>
     apiCall('/api/chat', { method: 'POST', body: JSON.stringify({ message, user_id: userId }) }),
-  
-  getChatHistory: (userId = 'default') => 
+
+  getChatHistory: (userId = 'default') =>
     apiCall(`/api/chat/history/${userId}`),
 
-  // Dashboard
-  getDashboard: (userId = 'default') => 
+  getDashboard: (userId = 'default') =>
     apiCall(`/api/dashboard/${userId}`),
 
-  // Renpho
-  getRenphoStatus: () => 
-    apiCall('/api/renpho/status'),
-  
-  getRenphoLatest: () => 
-    apiCall('/api/renpho/latest'),
+  getRenphoStatus: (userId = 'default') =>
+    apiCall(`/api/renpho/status?user_id=${userId}`),
 
-  // Plans
-  generateNutritionPlan: (userId = 'default') => 
+  getRenphoLatest: (userId = 'default') =>
+    apiCall(`/api/renpho/latest?user_id=${userId}`),
+
+  generateNutritionPlan: (userId = 'default') =>
     apiCall(`/api/nutrition/plan?user_id=${userId}`, { method: 'POST' }),
-  
-  generateWorkoutPlan: (userId = 'default') => 
+
+  generateWorkoutPlan: (userId = 'default') =>
     apiCall(`/api/workout/plan?user_id=${userId}`, { method: 'POST' }),
 
-  // Health
-  healthCheck: () => 
+  healthCheck: () =>
     apiCall('/api/health'),
 
-  // Google Fit
-  getGoogleFitUrl: () => 
-    apiCall('/api/google-fit/url'),
-  
-  googleFitCallback: (code) => 
-    apiCall('/api/google-fit/callback', { method: 'POST', body: JSON.stringify({ code }) }),
-  
-  getGoogleFitStatus: () => 
-    apiCall('/api/google-fit/status'),
+  getGoogleFitUrl: (userId = 'default') =>
+    apiCall(`/api/google-fit/url?user_id=${userId}`),
 
-  getGoogleFitHistory: (days = 30) => 
-    apiCall(`/api/google-fit/history?days=${days}`),
+  googleFitCallback: (code, userId = 'default') =>
+    apiCall('/api/google-fit/callback', { method: 'POST', body: JSON.stringify({ code, user_id: userId }) }),
 
-  // Yazio
-  getYazioStatus: () => 
-    apiCall('/api/yazio/status'),
-  
-  getYazioDaily: (date) => 
-    apiCall(`/api/yazio/daily${date ? `?date=${date}` : ''}`),
-  
-  getYazioDiary: (date) => 
-    apiCall(`/api/yazio/diary${date ? `?date=${date}` : ''}`),
+  getGoogleFitStatus: (userId = 'default') =>
+    apiCall(`/api/google-fit/status?user_id=${userId}`),
 
-  // Users
-  listUsers: () => 
+  getGoogleFitHistory: (userId = 'default', days = 30) =>
+    apiCall(`/api/google-fit/history?user_id=${userId}&days=${days}`),
+
+  getYazioStatus: (userId = 'default') =>
+    apiCall(`/api/yazio/status?user_id=${userId}`),
+
+  getYazioDaily: (userId = 'default', date) =>
+    apiCall(`/api/yazio/daily?user_id=${userId}${date ? `&date=${date}` : ''}`),
+
+  getYazioDiary: (userId = 'default', date) =>
+    apiCall(`/api/yazio/diary?user_id=${userId}${date ? `&date=${date}` : ''}`),
+
+  listUsers: () =>
     apiCall('/api/users'),
-  
-  getUser: (userId) => 
+
+  getUser: (userId) =>
     apiCall(`/api/users/${userId}`),
-  
-  createUser: (id, name, renphoEmail = '', renphoPassword = '', yazioEmail = '', yazioPassword = '') => 
-    apiCall('/api/users', { 
-      method: 'POST', 
-      body: JSON.stringify({ id, name, renpho_email: renphoEmail, renpho_password: renphoPassword, yazio_email: yazioEmail, yazio_password: yazioPassword }) 
+
+  createUser: (id, name, renphoEmail = '', renphoPassword = '', yazioEmail = '', yazioPassword = '') =>
+    apiCall('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({ id, name, renpho_email: renphoEmail, renpho_password: renphoPassword, yazio_email: yazioEmail, yazio_password: yazioPassword })
     }),
-  
-  updateUser: (userId, data) => 
+
+  updateUser: (userId, data) =>
     apiCall(`/api/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
-  
-  deleteUser: (userId) => 
+
+  deleteUser: (userId) =>
     apiCall(`/api/users/${userId}`, { method: 'DELETE' }),
 };

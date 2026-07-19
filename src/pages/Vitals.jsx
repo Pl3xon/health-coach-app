@@ -25,13 +25,14 @@ export default function Vitals() {
   const [callbackError, setCallbackError] = useState(null)
 
   const checkConnections = async () => {
+    if (!currentUser) return
     setLoading(true)
     try {
       const [renphoRes, gfStatus, renphoLatest, yazioRes] = await Promise.all([
-        api.getRenphoStatus(),
-        api.getGoogleFitStatus(),
-        api.getRenphoLatest(),
-        api.getYazioStatus()
+        api.getRenphoStatus(currentUser.id),
+        api.getGoogleFitStatus(currentUser.id),
+        api.getRenphoLatest(currentUser.id),
+        api.getYazioStatus(currentUser.id)
       ])
       setRenphoConnected(renphoRes.connected)
       setGoogleFitConnected(gfStatus.connected || false)
@@ -45,6 +46,7 @@ export default function Vitals() {
   }
 
   useEffect(() => {
+    if (!currentUser) return
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const error = params.get('error')
@@ -54,7 +56,7 @@ export default function Vitals() {
     } else if (code) {
       setConnecting(true)
       setCallbackError(null)
-      api.googleFitCallback(code).then(res => {
+      api.googleFitCallback(code, currentUser.id).then(res => {
         if (res.success) {
           window.history.replaceState({}, '', '/vitals')
           checkConnections()
@@ -69,11 +71,11 @@ export default function Vitals() {
     } else {
       checkConnections()
     }
-  }, [])
+  }, [currentUser])
 
   const connectGoogleFit = async () => {
     try {
-      const res = await api.getGoogleFitUrl()
+      const res = await api.getGoogleFitUrl(currentUser?.id)
       if (res.url) {
         window.location.href = res.url
       }

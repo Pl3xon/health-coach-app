@@ -24,15 +24,17 @@ export default function Nutrition() {
   const [loadingYazio, setLoadingYazio] = useState(false)
 
   useEffect(() => {
+    if (!currentUser) return
     loadYazioData()
-  }, [])
+  }, [currentUser])
 
   const loadYazioData = async () => {
+    if (!currentUser) return
     setLoadingYazio(true)
     try {
       const [summaryRes, diaryRes] = await Promise.all([
-        api.getYazioDaily(),
-        api.getYazioDiary()
+        api.getYazioDaily(currentUser.id),
+        api.getYazioDiary(currentUser.id)
       ])
       if (summaryRes.data) setYazioData(summaryRes.data)
       if (diaryRes.data) setYazioDiary(diaryRes.data)

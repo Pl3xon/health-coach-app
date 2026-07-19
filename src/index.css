@@ -25,7 +25,11 @@ body {
   background: linear-gradient(135deg, #0a0e17 0%, #111827 50%, #0a0e17 100%);
   color: #f1f5f9;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Animated background */
@@ -61,6 +65,7 @@ body::before {
 /* Glass morphism card */
 .glass-card {
   background: rgba(26, 31, 53, 0.6);
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -143,6 +148,7 @@ body::before {
 /* Sidebar */
 .sidebar {
   background: rgba(17, 24, 39, 0.8);
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -203,6 +209,8 @@ body::before {
   color: white;
   width: 100%;
   transition: all 0.3s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .input-field:focus {

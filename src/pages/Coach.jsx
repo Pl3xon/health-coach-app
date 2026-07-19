@@ -37,10 +37,10 @@ Stell mir einfach eine Frage!`
   useEffect(() => {
     if (!currentUser) return
     api.getChatHistory(currentUser.id).then(data => {
-      if (data.history && data.history.length > 0) {
+      if (data.messages && data.messages.length > 0) {
         setMessages([
           messages[0],
-          ...data.history.map((m, i) => ({
+          ...data.messages.map((m, i) => ({
             id: i,
             role: m.role,
             content: m.content,

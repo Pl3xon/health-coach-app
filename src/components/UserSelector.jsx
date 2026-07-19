@@ -96,7 +96,7 @@ export default function UserSelector() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (window.stringify(user.name) + ' wirklich löschen?') {
+                    if (confirm(user.name + ' wirklich löschen?')) {
                       deleteUser(user.id)
                     }
                   }}

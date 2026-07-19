@@ -8,13 +8,17 @@ import json
 import time
 import os
 
-from config import (
-    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_AUTH_CODE,
-    GEMINI_API_KEY, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
+from config import GOOGLE_REDIRECT_URI
+from services.storage import (
+    get_or_create_profile, save_profile, get_chat_history, save_chat_message,
+    list_users, get_user, create_user, update_user, delete_user,
 )
-from services.storage import get_or_create_profile, save_profile, get_chat_history, save_chat_message, list_users, get_user, create_user, update_user, delete_user
+from services.manager import (
+    get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
+    get_yazio_client, save_yazio_tokens_for_user, get_gemini_coach,
+)
 
-app = FastAPI(title="VitalCoach", version="2.0.0")
+app = FastAPI(title="VitalCoach", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,74 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Services lazy initialisieren
-renpho_client = None
-google_fit_client = None
-gemini_coach = None
-yazio_client = None
-
-
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://health-coach-app-sable.vercel.app/auth/google-fit")
-
-
-def init_services():
-    global renpho_client, google_fit_client, gemini_coach, yazio_client
-    try:
-        from services.renpho import RenphoClient
-        renpho_client = RenphoClient(RENPHO_EMAIL, RENPHO_PASSWORD)
-    except Exception as e:
-        print(f"Renpho init error: {e}")
-
-    try:
-        from services.google_fit import GoogleFitClient
-        google_fit_client = GoogleFitClient(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)
-    except Exception as e:
-        print(f"Google Fit init error: {e}")
-
-    try:
-        from services.gemini_coach import GeminiCoach
-        gemini_coach = GeminiCoach(GEMINI_API_KEY)
-    except Exception as e:
-        print(f"Gemini init error: {e}")
-
-    try:
-        from services.yazio import YazioClient
-        yazio_client = YazioClient()
-        if YAZIO_EMAIL and YAZIO_PASSWORD:
-            yazio_client.login(YAZIO_EMAIL, YAZIO_PASSWORD)
-    except Exception as e:
-        print(f"Yazio init error: {e}")
-
-
-init_services()
-
-
-class ChatMessage(BaseModel):
-    message: str
-    user_id: str = "default"
-
-
-class UserProfileUpdate(BaseModel):
-    user_id: str = "default"
-    name: Optional[str] = None
-    weight: Optional[float] = None
-    height: Optional[float] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    goals: Optional[List[str]] = None
-    fitness_level: Optional[str] = None
-    activity_level: Optional[str] = None
-
 
 @app.get("/api/health")
 async def health_check():
     return {
         "status": "ok",
-        "gemini": gemini_coach is not None,
-        "renpho": renpho_client is not None,
-        "google_fit": google_fit_client is not None,
-        "yazio": yazio_client is not None,
-        "gemini_key_set": bool(GEMINI_API_KEY),
+        "version": "3.0.0",
     }
 
 
@@ -156,6 +98,18 @@ async def get_profile(user_id: str):
     return get_or_create_profile(user_id)
 
 
+class UserProfileUpdate(BaseModel):
+    user_id: str = "default"
+    name: Optional[str] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    goals: Optional[List[str]] = None
+    fitness_level: Optional[str] = None
+    activity_level: Optional[str] = None
+
+
 @app.post("/api/profile")
 async def update_profile(update: UserProfileUpdate):
     profile = get_or_create_profile(update.user_id)
@@ -166,8 +120,14 @@ async def update_profile(update: UserProfileUpdate):
     return {"success": True, "profile": profile}
 
 
+class ChatMessage(BaseModel):
+    message: str
+    user_id: str = "default"
+
+
 @app.post("/api/chat")
 async def chat(message: ChatMessage):
+    gemini_coach = get_gemini_coach()
     if not gemini_coach:
         return {"response": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
 
@@ -175,20 +135,20 @@ async def chat(message: ChatMessage):
         profile = get_or_create_profile(message.user_id)
         health_data = {"profile": profile}
 
-        try:
-            if renpho_client and not renpho_client.user_id:
-                renpho_client.login()
-            if renpho_client:
-                renpho_data = renpho_client.get_latest_measurement()
-                if renpho_data:
-                    health_data["renpho"] = renpho_data
-        except:
-            pass
-
-        if google_fit_client and google_fit_client.is_connected():
+        renpho = get_renpho_client(message.user_id)
+        if renpho:
             try:
-                gf_data = google_fit_client.get_all_vital_data()
-                health_data["google_fit"] = gf_data
+                if renpho.login():
+                    rd = renpho.get_latest_measurement()
+                    if rd:
+                        health_data["renpho"] = rd
+            except:
+                pass
+
+        gf = get_google_fit_client(message.user_id)
+        if gf and gf.is_connected():
+            try:
+                health_data["google_fit"] = gf.get_all_vital_data()
             except:
                 pass
 
@@ -206,32 +166,35 @@ async def chat_history(user_id: str):
 
 
 @app.get("/api/renpho/status")
-async def renpho_status():
-    if not renpho_client:
-        return {"connected": False, "error": "Renpho Service nicht initialisiert"}
+async def renpho_status(user_id: str = "default"):
+    renpho = get_renpho_client(user_id)
+    if not renpho:
+        return {"connected": False, "error": "Keine Renpho-Zugangsdaten für diesen User"}
     try:
-        success = renpho_client.login()
+        success = renpho.login()
         return {"connected": success}
     except Exception as e:
         return {"connected": False, "error": str(e)}
 
 
 @app.get("/api/renpho/latest")
-async def renpho_latest():
-    if not renpho_client:
-        return {"measurement": None, "error": "Renpho Service nicht initialisiert"}
+async def renpho_latest(user_id: str = "default"):
+    renpho = get_renpho_client(user_id)
+    if not renpho:
+        return {"measurement": None, "error": "Keine Renpho-Zugangsdaten"}
     try:
-        if not renpho_client.user_id:
-            renpho_client.login()
-        return {"measurement": renpho_client.get_latest_measurement()}
+        if not renpho.user_id:
+            renpho.login()
+        return {"measurement": renpho.get_latest_measurement()}
     except Exception as e:
         return {"measurement": None, "error": str(e)}
 
 
 @app.post("/api/nutrition/plan")
 async def generate_nutrition_plan(user_id: str = "default"):
+    gemini_coach = get_gemini_coach()
     if not gemini_coach:
-        return {"plan": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
+        return {"plan": "Der AI Coach ist noch nicht konfiguriert."}
     try:
         profile = get_or_create_profile(user_id)
         plan = gemini_coach.generate_nutrition_plan(
@@ -249,8 +212,9 @@ async def generate_nutrition_plan(user_id: str = "default"):
 
 @app.post("/api/workout/plan")
 async def generate_workout_plan(user_id: str = "default"):
+    gemini_coach = get_gemini_coach()
     if not gemini_coach:
-        return {"plan": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
+        return {"plan": "Der AI Coach ist noch nicht konfiguriert."}
     try:
         profile = get_or_create_profile(user_id)
         plan = gemini_coach.generate_workout_plan(
@@ -264,95 +228,85 @@ async def generate_workout_plan(user_id: str = "default"):
 
 
 @app.get("/api/google-fit/url")
-async def google_fit_auth_url():
-    if not google_fit_client:
+async def google_fit_auth_url(user_id: str = "default"):
+    gf = get_google_fit_client(user_id)
+    if not gf:
         return {"url": None, "error": "Google Fit nicht initialisiert"}
-    url = google_fit_client.get_auth_url()
-    return {"url": url}
+    url = gf.get_auth_url()
+    return {"url": url, "user_id": user_id}
 
 
 class GoogleFitCallback(BaseModel):
     code: str
+    user_id: str = "default"
 
 
 @app.post("/api/google-fit/callback")
 async def google_fit_callback(cb: GoogleFitCallback):
-    if not google_fit_client:
+    gf = get_google_fit_client(cb.user_id)
+    if not gf:
         return {"success": False, "error": "Google Fit nicht initialisiert"}
-    result = google_fit_client.exchange_code(cb.code)
+    result = gf.exchange_code(cb.code)
+    if result.get("success"):
+        save_gf_tokens_for_user(cb.user_id, gf)
     return result
 
 
 @app.get("/api/google-fit/status")
-async def google_fit_status():
-    if not google_fit_client:
+async def google_fit_status(user_id: str = "default"):
+    gf = get_google_fit_client(user_id)
+    if not gf:
         return {"connected": False}
-    return {"connected": google_fit_client.is_connected()}
+    return {"connected": gf.is_connected()}
 
 
 @app.get("/api/google-fit/history")
-async def google_fit_history(days: int = 30):
-    if not google_fit_client or not google_fit_client.access_token:
+async def google_fit_history(user_id: str = "default", days: int = 30):
+    gf = get_google_fit_client(user_id)
+    if not gf or not gf.access_token:
         return {"data": None}
     try:
-        data = google_fit_client.get_health_history(days)
+        data = gf.get_health_history(days)
         return {"data": data}
     except Exception as e:
         return {"data": None, "error": str(e)}
 
 
-@app.get("/api/debug/google-fit-sources")
-async def debug_google_fit_sources():
-    if not google_fit_client or not google_fit_client.access_token:
-        return {"error": "Not connected"}
-    try:
-        return google_fit_client.debug_list_data_sources()
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/debug/google-fit-today")
-async def debug_google_fit_today():
-    if not google_fit_client or not google_fit_client.access_token:
-        return {"error": "Not connected"}
-    try:
-        return google_fit_client.debug_get_today_data()
-    except Exception as e:
-        return {"error": str(e)}
-
-
 @app.get("/api/yazio/status")
-async def yazio_status():
-    if not yazio_client:
+async def yazio_status(user_id: str = "default"):
+    yazio = get_yazio_client(user_id)
+    if not yazio:
         return {"connected": False}
-    return {"connected": yazio_client.is_connected()}
+    return {"connected": yazio.is_connected()}
 
 
 @app.get("/api/yazio/daily")
-async def yazio_daily(date: str = None):
-    if not yazio_client:
+async def yazio_daily(user_id: str = "default", date: str = None):
+    yazio = get_yazio_client(user_id)
+    if not yazio:
         return {"data": None, "error": "Yazio nicht initialisiert"}
     if not date:
         from datetime import datetime, timezone, timedelta
         tz = timezone(timedelta(hours=2))
         date = datetime.now(tz).strftime("%Y-%m-%d")
     try:
-        data = yazio_client.get_daily_summary(date)
+        data = yazio.get_daily_summary(date)
         return {"data": data}
     except Exception as e:
         return {"data": None, "error": str(e)}
 
 
 @app.get("/api/yazio/diary")
-async def yazio_diary(date: str = None):
-    if not yazio_client:
+async def yazio_diary(user_id: str = "default", date: str = None):
+    yazio = get_yazio_client(user_id)
+    if not yazio:
         return {"data": None, "error": "Yazio nicht initialisiert"}
     if not date:
         from datetime import datetime, timezone, timedelta
         tz = timezone(timedelta(hours=2))
         date = datetime.now(tz).strftime("%Y-%m-%d")
     try:
-        data = yazio_client.get_consumed_items(date)
+        data = yazio.get_consumed_items(date)
         return {"data": data}
     except Exception as e:
         return {"data": None, "error": str(e)}
@@ -363,28 +317,29 @@ async def get_dashboard(user_id: str):
     profile = get_or_create_profile(user_id)
     dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None, "yazio": None}
 
-    if renpho_client:
+    renpho = get_renpho_client(user_id)
+    if renpho:
         try:
-            if renpho_client.login():
+            if renpho.login():
                 dashboard["renpho"]["connected"] = True
-                dashboard["renpho"]["latest"] = renpho_client.get_latest_measurement()
+                dashboard["renpho"]["latest"] = renpho.get_latest_measurement()
         except:
             pass
 
-    if google_fit_client and google_fit_client.access_token:
+    gf = get_google_fit_client(user_id)
+    if gf and gf.access_token:
         try:
-            gf_data = google_fit_client.get_all_vital_data()
-            dashboard["google_fit"] = gf_data
+            dashboard["google_fit"] = gf.get_all_vital_data()
         except:
             pass
 
-    if yazio_client and yazio_client.is_connected():
+    yazio = get_yazio_client(user_id)
+    if yazio and yazio.is_connected():
         try:
             from datetime import datetime, timezone, timedelta
             tz = timezone(timedelta(hours=2))
             today = datetime.now(tz).strftime("%Y-%m-%d")
-            yazio_data = yazio_client.get_daily_summary(today)
-            dashboard["yazio"] = yazio_data
+            dashboard["yazio"] = yazio.get_daily_summary(today)
         except:
             pass
 
