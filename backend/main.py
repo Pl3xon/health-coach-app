@@ -398,6 +398,48 @@ async def fitbit_history(user_id: str = "default", days: int = 30):
         return {"data": None, "error": str(e)}
 
 
+@app.get("/api/debug/health")
+async def debug_health(user_id: str = "default"):
+    gh = get_google_health_client(user_id)
+    if not gh:
+        return {"error": "Google Health Client nicht vorhanden", "has_config": bool(GOOGLE_CLIENT_ID)}
+    connected = gh.is_connected()
+    if not connected:
+        return {"error": "Nicht verbunden", "has_refresh_token": bool(gh.refresh_token)}
+
+    results = {}
+    try:
+        results["resting_hr"] = gh.get_resting_heart_rate_today()
+    except Exception as e:
+        results["resting_hr_error"] = str(e)
+    try:
+        results["hrv"] = gh.get_hrv_today()
+    except Exception as e:
+        results["hrv_error"] = str(e)
+    try:
+        results["spo2"] = gh.get_spo2_today()
+    except Exception as e:
+        results["spo2_error"] = str(e)
+    try:
+        results["sleep"] = gh.get_sleep_today()
+    except Exception as e:
+        results["sleep_error"] = str(e)
+    try:
+        results["azm"] = gh.get_active_zone_minutes_today()
+    except Exception as e:
+        results["azm_error"] = str(e)
+    try:
+        results["steps"] = gh.get_steps_today()
+    except Exception as e:
+        results["steps_error"] = str(e)
+    try:
+        results["heart_rate"] = gh.get_heart_rate_today()
+    except Exception as e:
+        results["heart_rate_error"] = str(e)
+
+    return {"connected": True, "results": results}
+
+
 @app.get("/api/dashboard/{user_id}")
 async def get_dashboard(user_id: str):
     profile = get_or_create_profile(user_id)
