@@ -12,6 +12,7 @@ from config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_AUTH_CODE,
     GEMINI_API_KEY, RENPHO_EMAIL, RENPHO_PASSWORD
 )
+from services.storage import get_or_create_profile, save_profile, get_chat_history, save_chat_message
 
 app = FastAPI(title="VitalCoach", version="2.0.0")
 
@@ -22,11 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-local_db = {
-    "profiles": {},
-    "chat_history": {}
-}
 
 # Services lazy initialisieren
 renpho_client = None
@@ -78,43 +74,6 @@ class UserProfileUpdate(BaseModel):
     activity_level: Optional[str] = None
 
 
-DEFAULT_PROFILE = {
-    "name": "Kevin",
-    "weight": 80,
-    "height": 180,
-    "age": 28,
-    "gender": "männlich",
-    "goals": ["Abnehmen", "Muskelaufbau", "Bauch weg"],
-    "fitness_level": "Anfänger",
-    "activity_level": "Moderat"
-}
-
-
-def get_user_profile(user_id: str) -> dict:
-    if user_id not in local_db["profiles"]:
-        local_db["profiles"][user_id] = DEFAULT_PROFILE.copy()
-    return local_db["profiles"][user_id]
-
-
-def save_user_profile(user_id: str, profile: dict):
-    local_db["profiles"][user_id] = profile
-
-
-def save_chat_message(user_id: str, role: str, content: str):
-    if user_id not in local_db["chat_history"]:
-        local_db["chat_history"][user_id] = []
-    local_db["chat_history"][user_id].append({
-        "role": role,
-        "content": content,
-        "timestamp": time.time()
-    })
-    local_db["chat_history"][user_id] = local_db["chat_history"][user_id][-50:]
-
-
-def get_chat_history(user_id: str) -> list:
-    return local_db["chat_history"].get(user_id, [])
-
-
 @app.get("/api/health")
 async def health_check():
     return {
@@ -128,16 +87,16 @@ async def health_check():
 
 @app.get("/api/profile/{user_id}")
 async def get_profile(user_id: str):
-    return get_user_profile(user_id)
+    return get_or_create_profile(user_id)
 
 
 @app.post("/api/profile")
 async def update_profile(update: UserProfileUpdate):
-    profile = get_user_profile(update.user_id)
+    profile = get_or_create_profile(update.user_id)
     update_dict = update.dict(exclude_none=True)
     del update_dict["user_id"]
     profile.update(update_dict)
-    save_user_profile(update.user_id, profile)
+    save_profile(update.user_id, profile)
     return {"success": True, "profile": profile}
 
 
@@ -147,7 +106,7 @@ async def chat(message: ChatMessage):
         return {"response": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
 
     try:
-        profile = get_user_profile(message.user_id)
+        profile = get_or_create_profile(message.user_id)
         health_data = {"profile": profile}
 
         try:
@@ -168,8 +127,8 @@ async def chat(message: ChatMessage):
                 pass
 
         response = gemini_coach.chat_with_health_data(message.message, health_data)
-        save_chat_message(message.user_id, "user", message.message)
-        save_chat_message(message.user_id, "assistant", response)
+        save_chat_message(message.user_id, "user", message.message, time.time())
+        save_chat_message(message.user_id, "assistant", response, time.time())
         return {"response": response}
     except Exception as e:
         return {"response": f"Fehler: {str(e)}. Bitte Gemini API-Key prüfen."}
@@ -208,7 +167,7 @@ async def generate_nutrition_plan(user_id: str = "default"):
     if not gemini_coach:
         return {"plan": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
     try:
-        profile = get_user_profile(user_id)
+        profile = get_or_create_profile(user_id)
         plan = gemini_coach.generate_nutrition_plan(
             weight=profile.get("weight", 80),
             height=profile.get("height", 180),
@@ -227,7 +186,7 @@ async def generate_workout_plan(user_id: str = "default"):
     if not gemini_coach:
         return {"plan": "Der AI Coach ist noch nicht konfiguriert. Bitte trage einen gültigen Gemini API-Key in den Render Environment Variables ein (GEMINI_API_KEY). Du bekommst ihn unter https://aistudio.google.com/apikey"}
     try:
-        profile = get_user_profile(user_id)
+        profile = get_or_create_profile(user_id)
         plan = gemini_coach.generate_workout_plan(
             fitness_level=profile.get("fitness_level", "Anfänger"),
             goal=", ".join(profile.get("goals", ["Abnehmen"])),
@@ -265,9 +224,29 @@ async def google_fit_status():
     return {"connected": google_fit_client.is_connected()}
 
 
+@app.get("/api/debug/google-fit-sources")
+async def debug_google_fit_sources():
+    if not google_fit_client or not google_fit_client.access_token:
+        return {"error": "Not connected"}
+    try:
+        return google_fit_client.debug_list_data_sources()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/debug/google-fit-today")
+async def debug_google_fit_today():
+    if not google_fit_client or not google_fit_client.access_token:
+        return {"error": "Not connected"}
+    try:
+        return google_fit_client.debug_get_today_data()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/dashboard/{user_id}")
 async def get_dashboard(user_id: str):
-    profile = get_user_profile(user_id)
+    profile = get_or_create_profile(user_id)
     dashboard = {"profile": profile, "renpho": {"connected": False, "latest": None}, "google_fit": None}
 
     if renpho_client:

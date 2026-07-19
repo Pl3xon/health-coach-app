@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+backend/data/
+backend/google_fit_tokens.json
+backend/yazio_tokens.json
