@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Scale, Droplets, Flame, Zap, Heart, Moon, RefreshCw, Wifi, WifiOff, UtensilsCrossed, Save, Watch } from 'lucide-react'
+import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, UtensilsCrossed, Save } from 'lucide-react'
 import { api } from '../services/api'
 import { useUser } from '../contexts/UserContext'
 
@@ -18,7 +18,6 @@ export default function Vitals() {
   const { currentUser } = useUser()
   const [renphoConnected, setRenphoConnected] = useState(false)
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
-  const [fitbitConnected, setFitbitConnected] = useState(false)
   const [yazioConnected, setYazioConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [renphoData, setRenphoData] = useState(null)
@@ -33,16 +32,14 @@ export default function Vitals() {
     if (!currentUser) return
     setLoading(true)
     try {
-      const [renphoRes, gfStatus, fitbitStatus, renphoLatest, yazioRes] = await Promise.all([
+      const [renphoRes, gfStatus, renphoLatest, yazioRes] = await Promise.all([
         api.getRenphoStatus(currentUser.id),
         api.getGoogleFitStatus(currentUser.id),
-        api.getFitbitStatus(currentUser.id),
         api.getRenphoLatest(currentUser.id),
         api.getYazioStatus(currentUser.id)
       ])
       setRenphoConnected(renphoRes.connected)
       setGoogleFitConnected(gfStatus.connected || false)
-      setFitbitConnected(fitbitStatus.connected || false)
       setYazioConnected(yazioRes.connected || false)
       if (renphoLatest.measurement) setRenphoData(renphoLatest.measurement)
     } catch (error) {
@@ -109,19 +106,6 @@ export default function Vitals() {
     }
   }
 
-  const connectFitbit = async () => {
-    try {
-      const res = await api.getFitbitUrl(currentUser?.id)
-      if (res.url) {
-        window.location.href = res.url
-      } else if (res.error) {
-        setCallbackError(res.error)
-      }
-    } catch (error) {
-      console.error('Error getting Fitbit URL:', error)
-    }
-  }
-
   const saveYazioCredentials = async () => {
     if (!yazioEmail || !yazioPassword) return
     setSavingYazio(true)
@@ -162,7 +146,7 @@ export default function Vitals() {
         </motion.button>
       </motion.div>
 
-      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className={`glass-card p-5 ${renphoConnected ? 'neon-glow-green' : ''}`}>
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${renphoConnected ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
@@ -175,35 +159,17 @@ export default function Vitals() {
           </div>
         </div>
 
-        <div className={`glass-card p-5 ${fitbitConnected ? 'neon-glow' : ''}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${fitbitConnected ? 'bg-gradient-to-br from-cyan-400 to-blue-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
-              {fitbitConnected ? <Watch className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold">Fitbit</h3>
-              <p className={`text-sm ${fitbitConnected ? 'text-cyan-400' : 'text-gray-400'}`}>
-                {connecting ? 'Verbinde...' : fitbitConnected ? 'Verbunden' : 'Nicht verbunden'}
-              </p>
-            </div>
-            {!fitbitConnected && !connecting && (
-              <button onClick={connectFitbit} className="btn-primary text-sm px-4 py-2">
-                Verbinden
-              </button>
-            )}
-          </div>
-        </div>
-
         <div className={`glass-card p-5 ${googleFitConnected ? 'neon-glow' : ''}`}>
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${googleFitConnected ? 'bg-gradient-to-br from-cyan-400 to-blue-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
               {googleFitConnected ? <Activity className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Google Fit</h3>
+              <h3 className="font-semibold">Google Fit + Fitbit</h3>
               <p className={`text-sm ${googleFitConnected ? 'text-cyan-400' : 'text-gray-400'}`}>
                 {connecting ? 'Verbinde...' : googleFitConnected ? 'Verbunden' : 'Nicht verbunden'}
               </p>
+              {googleFitConnected && <p className="text-xs text-gray-500 mt-0.5">inkl. HR, SpO2, Schlaf, HRV</p>}
             </div>
             {!googleFitConnected && !connecting && (
               <button onClick={connectGoogleFit} className="btn-primary text-sm px-4 py-2">

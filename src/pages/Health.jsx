@@ -96,7 +96,7 @@ export default function Health() {
   const { currentUser } = useUser()
   const [history, setHistory] = useState(null)
   const [today, setToday] = useState(null)
-  const [fitbitData, setFitbitData] = useState(null)
+  const [healthVitals, setHealthVitals] = useState(null)
   const [yazioData, setYazioData] = useState(null)
   const [yazioDiary, setYazioDiary] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -109,7 +109,7 @@ export default function Health() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [historyRes, dashboardRes, yazioRes, yazioDiaryRes, fitbitVitalsRes] = await Promise.all([
+      const [historyRes, dashboardRes, yazioRes, yazioDiaryRes, healthVitalsRes] = await Promise.all([
         api.getGoogleFitHistory(currentUser.id, 30),
         api.getDashboard(currentUser.id),
         api.getYazioDaily(currentUser.id),
@@ -118,9 +118,9 @@ export default function Health() {
       ])
       if (historyRes.data) setHistory(historyRes.data)
       if (dashboardRes.google_fit) setToday(dashboardRes.google_fit)
-      if (fitbitVitalsRes.data) {
-        setFitbitData(fitbitVitalsRes.data)
-        if (!today) setToday(fitbitVitalsRes.data)
+      if (healthVitalsRes.data) {
+        setHealthVitals(healthVitalsRes.data)
+        if (!today) setToday(healthVitalsRes.data)
       }
       if (yazioRes.data) setYazioData(yazioRes.data)
       if (yazioDiaryRes.data) setYazioDiary(yazioDiaryRes.data)
@@ -140,13 +140,13 @@ export default function Health() {
   const azmData = history?.active_zone_minutes || []
 
   const vitalsToday = today || {}
-  const fbToday = fitbitData || {}
-  const displayHR = vitalsToday.heart_rate || fbToday.resting_heart_rate || null
-  const displayRestingHR = vitalsToday.resting_heart_rate || fbToday.resting_heart_rate || null
-  const displayHRV = vitalsToday.hrv || fbToday.hrv || null
-  const displaySpO2 = vitalsToday.spo2 || fbToday.spo2 || null
-  const displaySleep = vitalsToday.sleep_hours || fbToday.sleep_hours || null
-  const displayAZM = vitalsToday.active_zone_minutes || fbToday.active_zone_minutes || null
+  const ghToday = healthVitals || {}
+  const displayHR = vitalsToday.heart_rate || ghToday.resting_heart_rate || null
+  const displayRestingHR = vitalsToday.resting_heart_rate || ghToday.resting_heart_rate || null
+  const displayHRV = vitalsToday.hrv || ghToday.hrv || null
+  const displaySpO2 = vitalsToday.spo2 || ghToday.spo2 || null
+  const displaySleep = vitalsToday.sleep_hours || ghToday.sleep_hours || null
+  const displayAZM = vitalsToday.active_zone_minutes || ghToday.active_zone_minutes || null
 
   const yazioSummary = yazioData?.summary || yazioData?.intakes || {}
   const consumedCalories = yazioSummary['energy.energy'] || yazioData?.energy || 0
@@ -190,8 +190,8 @@ export default function Health() {
         <StatCard label="Ruhe-HF" value={displayRestingHR} unit="bpm" icon={Heart} color="from-orange-400 to-red-500" />
         <StatCard label="HRV" value={displayHRV} unit="ms" icon={Activity} color="from-purple-400 to-pink-500" />
         <StatCard label="SpO2" value={displaySpO2} unit="%" icon={Droplets} color="from-cyan-400 to-blue-500" />
-        <StatCard label="Schritte" value={vitalsToday.steps_today || fbToday.steps_today || null} unit="" icon={Activity} color="from-green-400 to-emerald-500" />
-        <StatCard label="Kalorien" value={vitalsToday.calories_today || fbToday.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
+        <StatCard label="Schritte" value={vitalsToday.steps_today || ghToday.steps_today || null} unit="" icon={Activity} color="from-green-400 to-emerald-500" />
+        <StatCard label="Kalorien" value={vitalsToday.calories_today || ghToday.calories_today || null} unit="kcal" icon={Flame} color="from-orange-400 to-red-500" />
         <StatCard label="Aktivzonen" value={displayAZM} unit="min" icon={Zap} color="from-yellow-400 to-orange-500" />
         <StatCard label="Schlaf" value={displaySleep} unit="h" icon={Moon} color="from-indigo-400 to-purple-500" />
       </motion.div>

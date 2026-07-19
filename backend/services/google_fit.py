@@ -13,6 +13,9 @@ class GoogleFitClient:
         "https://www.googleapis.com/auth/fitness.body.read",
         "https://www.googleapis.com/auth/fitness.nutrition.read",
         "https://www.googleapis.com/auth/fitness.oxygen_saturation.read",
+        "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
+        "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
+        "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
     ]
 
     def __init__(self, client_id: str, client_secret: str, redirect_uri: str = "",
