@@ -99,11 +99,10 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-4">Schnellaktionen</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button onClick={() => navigate('/workout')} className="btn-primary flex items-center justify-center gap-2"><Activity className="w-5 h-5" />Workout starten</button>
-            <button onClick={() => navigate('/coach')} className="btn-secondary flex items-center justify-center gap-2"><Flame className="w-5 h-5" />Mahlzeit eintragen</button>
-            <button onClick={() => navigate('/vitals')} className="btn-secondary flex items-center justify-center gap-2"><Scale className="w-5 h-5" />Wiegen</button>
-            <button onClick={() => navigate('/vitals')} className="btn-secondary flex items-center justify-center gap-2"><Heart className="w-5 h-5" />Puls messen</button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button onClick={() => navigate('/health')} className="btn-primary flex items-center justify-center gap-2"><Activity className="w-5 h-5" />Gesundheit</button>
+            <button onClick={() => navigate('/workout')} className="btn-secondary flex items-center justify-center gap-2"><Flame className="w-5 h-5" />Workout starten</button>
+            <button onClick={() => navigate('/coach')} className="btn-secondary flex items-center justify-center gap-2"><Heart className="w-5 h-5" />Mahlzeit eintragen</button>
           </div>
         </div>
       </motion.div>

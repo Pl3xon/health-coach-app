@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, MessageCircle, UtensilsCrossed, 
   Dumbbell, Activity, Settings, Menu, X, Heart,
-  TrendingUp, User
+  TrendingUp, User, Stethoscope
 } from 'lucide-react'
 
 import Dashboard from './pages/Dashboard'
@@ -13,9 +13,11 @@ import Nutrition from './pages/Nutrition'
 import Workout from './pages/Workout'
 import Vitals from './pages/Vitals'
 import Profile from './pages/Profile'
+import Health from './pages/Health'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/health', icon: Stethoscope, label: 'Gesundheit' },
   { path: '/coach', icon: MessageCircle, label: 'AI Coach' },
   { path: '/nutrition', icon: UtensilsCrossed, label: 'Ernährung' },
   { path: '/workout', icon: Dumbbell, label: 'Workout' },
@@ -116,6 +118,7 @@ function AppLayout() {
         <AnimatePresence mode="wait">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/health" element={<Health />} />
             <Route path="/coach" element={<Coach />} />
             <Route path="/nutrition" element={<Nutrition />} />
             <Route path="/workout" element={<Workout />} />
