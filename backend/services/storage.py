@@ -74,3 +74,58 @@ def get_or_create_profile(user_id: str) -> dict:
         profile = DEFAULT_PROFILE.copy()
         save_profile(user_id, profile)
     return profile
+
+
+def list_users() -> list:
+    users = load("users.json", [])
+    if not users:
+        users = [{"id": "default", "name": "Kevin"}]
+        save("users.json", users)
+    return users
+
+
+def get_user(user_id: str) -> dict | None:
+    users = list_users()
+    for u in users:
+        if u["id"] == user_id:
+            return u
+    return None
+
+
+def create_user(user_id: str, name: str, renpho_email: str = "", renpho_password: str = "", yazio_email: str = "", yazio_password: str = "") -> dict:
+    users = list_users()
+    for u in users:
+        if u["id"] == user_id:
+            return u
+    user = {
+        "id": user_id,
+        "name": name,
+        "renpho_email": renpho_email,
+        "renpho_password": renpho_password,
+        "yazio_email": yazio_email,
+        "yazio_password": yazio_password,
+    }
+    users.append(user)
+    save("users.json", users)
+    save_profile(user_id, DEFAULT_PROFILE.copy())
+    return user
+
+
+def update_user(user_id: str, data: dict) -> dict | None:
+    users = list_users()
+    for u in users:
+        if u["id"] == user_id:
+            u.update(data)
+            save("users.json", users)
+            return u
+    return None
+
+
+def delete_user(user_id: str) -> bool:
+    users = list_users()
+    new_users = [u for u in users if u["id"] != user_id]
+    if len(new_users) < len(users):
+        save("users.json", new_users)
+        return True
+    return False
+

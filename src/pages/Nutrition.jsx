@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { UtensilsCrossed, Flame, Apple, Droplets, Loader2, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -15,6 +16,7 @@ const item = {
 }
 
 export default function Nutrition() {
+  const { currentUser } = useUser()
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [yazioData, setYazioData] = useState(null)
@@ -44,7 +46,7 @@ export default function Nutrition() {
   const generatePlan = async () => {
     setLoading(true)
     try {
-      const data = await api.generateNutritionPlan()
+      const data = await api.generateNutritionPlan(currentUser?.id)
       setPlan(data.plan)
     } catch (error) {
       console.error('Error generating plan:', error)

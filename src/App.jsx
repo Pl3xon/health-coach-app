@@ -7,6 +7,8 @@ import {
   TrendingUp, User, Stethoscope
 } from 'lucide-react'
 
+import { UserProvider, useUser } from './contexts/UserContext'
+import UserSelector from './components/UserSelector'
 import Dashboard from './pages/Dashboard'
 import Coach from './pages/Coach'
 import Nutrition from './pages/Nutrition'
@@ -127,16 +129,14 @@ function AppLayout() {
           </Routes>
         </AnimatePresence>
       </main>
+      
+      <UserSelector />
     </div>
   )
 }
 
-function App() {
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 1500)
-  }, [])
+function AppContent() {
+  const { currentUser, loading } = useUser()
 
   if (loading) {
     return (
@@ -163,12 +163,22 @@ function App() {
     )
   }
 
+  if (!currentUser) {
+    return <UserSelector />
+  }
+
+  return <AppLayout />
+}
+
+function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/auth/google-fit" element={<GoogleFitCallbackRedirect />} />
-        <Route path="*" element={<AppLayout />} />
-      </Routes>
+      <UserProvider>
+        <Routes>
+          <Route path="/auth/google-fit" element={<GoogleFitCallbackRedirect />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </UserProvider>
     </Router>
   )
 }

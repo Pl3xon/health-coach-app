@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Dumbbell, Clock, Target, Loader2, ChevronDown, ChevronUp, Youtube } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -54,6 +55,7 @@ const workoutCategories = [
 ]
 
 export default function Workout() {
+  const { currentUser } = useUser()
   const [expandedCategory, setExpandedCategory] = useState('Bauch & Core')
   const [aiPlan, setAiPlan] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -61,7 +63,7 @@ export default function Workout() {
   const generateAiPlan = async () => {
     setLoading(true)
     try {
-      const data = await api.generateWorkoutPlan()
+      const data = await api.generateWorkoutPlan(currentUser?.id)
       setAiPlan(data.plan)
     } catch (error) {
       console.error('Error:', error)

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, Save, Target, Ruler, Scale, Calendar, Activity } from 'lucide-react'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -14,6 +15,7 @@ const item = {
 }
 
 export default function Profile() {
+  const { currentUser } = useUser()
   const [profile, setProfile] = useState({
     name: 'Kevin',
     weight: 80,
@@ -28,10 +30,11 @@ export default function Profile() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    api.getProfile().then(data => {
+    if (!currentUser) return
+    api.getProfile(currentUser.id).then(data => {
       if (data && data.name) setProfile(data)
     }).catch(() => {})
-  }, [])
+  }, [currentUser])
 
   const availableGoals = [
     'Abnehmen', 'Muskelaufbau', 'Ausdauer verbessern', 
@@ -44,7 +47,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await api.updateProfile(profile)
+      await api.updateProfile({ ...profile, user_id: currentUser?.id })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (error) {

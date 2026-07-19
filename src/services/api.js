@@ -76,4 +76,23 @@ export const api = {
   
   getYazioDiary: (date) => 
     apiCall(`/api/yazio/diary${date ? `?date=${date}` : ''}`),
+
+  // Users
+  listUsers: () => 
+    apiCall('/api/users'),
+  
+  getUser: (userId) => 
+    apiCall(`/api/users/${userId}`),
+  
+  createUser: (id, name, renphoEmail = '', renphoPassword = '', yazioEmail = '', yazioPassword = '') => 
+    apiCall('/api/users', { 
+      method: 'POST', 
+      body: JSON.stringify({ id, name, renpho_email: renphoEmail, renpho_password: renphoPassword, yazio_email: yazioEmail, yazio_password: yazioPassword }) 
+    }),
+  
+  updateUser: (userId, data) => 
+    apiCall(`/api/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  
+  deleteUser: (userId) => 
+    apiCall(`/api/users/${userId}`, { method: 'DELETE' }),
 };

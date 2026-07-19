@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Activity, Scale, Droplets, Flame, Zap, Heart, RefreshCw, Wifi, WifiOff, UtensilsCrossed } from 'lucide-react'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -14,6 +15,7 @@ const item = {
 }
 
 export default function Vitals() {
+  const { currentUser } = useUser()
   const [renphoConnected, setRenphoConnected] = useState(false)
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
   const [yazioConnected, setYazioConnected] = useState(false)

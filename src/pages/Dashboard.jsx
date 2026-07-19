@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Scale, Droplets, Flame, Heart, Moon, Activity, Zap } from 'lucide-react'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -16,17 +17,19 @@ const item = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { currentUser } = useUser()
   const [profile, setProfile] = useState({ name: 'Kevin', weight: 80, height: 180, goals: ['Abnehmen', 'Muskelaufbau', 'Bauch weg'] })
   const [renpho, setRenpho] = useState({ connected: false, latest: null })
   const [googleFit, setGoogleFit] = useState(null)
 
   useEffect(() => {
-    api.getDashboard().then(data => {
+    if (!currentUser) return
+    api.getDashboard(currentUser.id).then(data => {
       if (data.profile) setProfile(data.profile)
       if (data.renpho) setRenpho(data.renpho)
       if (data.google_fit) setGoogleFit(data.google_fit)
     }).catch(() => {})
-  }, [])
+  }, [currentUser])
 
   const latest = renpho.latest || {}
   const gf = googleFit || {}

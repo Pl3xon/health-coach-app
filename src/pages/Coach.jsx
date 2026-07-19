@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Bot, User, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 export default function Coach() {
+  const { currentUser } = useUser()
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -32,6 +34,22 @@ Stell mir einfach eine Frage!`
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    if (!currentUser) return
+    api.getChatHistory(currentUser.id).then(data => {
+      if (data.history && data.history.length > 0) {
+        setMessages([
+          messages[0],
+          ...data.history.map((m, i) => ({
+            id: i,
+            role: m.role,
+            content: m.content,
+          }))
+        ])
+      }
+    }).catch(() => {})
+  }, [currentUser])
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
@@ -41,7 +59,7 @@ Stell mir einfach eine Frage!`
     setIsLoading(true)
 
     try {
-      const data = await api.sendMessage(input)
+      const data = await api.sendMessage(input, currentUser?.id)
       const assistantMessage = {
         id: Date.now() + 1,
         role: 'assistant',

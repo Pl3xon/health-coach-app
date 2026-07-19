@@ -4,6 +4,7 @@ import { Activity, Heart, Moon, Flame, Zap, Droplets, Apple, ArrowLeft } from 'l
 import { useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { api } from '../services/api'
+import { useUser } from '../contexts/UserContext'
 
 const container = {
   hidden: { opacity: 0 },
@@ -92,21 +93,23 @@ function StatCard({ label, value, unit, icon: Icon, color }) {
 
 export default function Health() {
   const navigate = useNavigate()
+  const { currentUser } = useUser()
   const [history, setHistory] = useState(null)
   const [today, setToday] = useState(null)
   const [yazioData, setYazioData] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!currentUser) return
     loadData()
-  }, [])
+  }, [currentUser])
 
   const loadData = async () => {
     setLoading(true)
     try {
       const [historyRes, dashboardRes, yazioRes] = await Promise.all([
         api.getGoogleFitHistory(30),
-        api.getDashboard(),
+        api.getDashboard(currentUser.id),
         api.getYazioDaily()
       ])
       if (historyRes.data) setHistory(historyRes.data)

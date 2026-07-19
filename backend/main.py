@@ -12,7 +12,7 @@ from config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_AUTH_CODE,
     GEMINI_API_KEY, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
 )
-from services.storage import get_or_create_profile, save_profile, get_chat_history, save_chat_message
+from services.storage import get_or_create_profile, save_profile, get_chat_history, save_chat_message, list_users, get_user, create_user, update_user, delete_user
 
 app = FastAPI(title="VitalCoach", version="2.0.0")
 
@@ -90,8 +90,65 @@ async def health_check():
         "gemini": gemini_coach is not None,
         "renpho": renpho_client is not None,
         "google_fit": google_fit_client is not None,
+        "yazio": yazio_client is not None,
         "gemini_key_set": bool(GEMINI_API_KEY),
     }
+
+
+class UserCreate(BaseModel):
+    id: str
+    name: str
+    renpho_email: Optional[str] = ""
+    renpho_password: Optional[str] = ""
+    yazio_email: Optional[str] = ""
+    yazio_password: Optional[str] = ""
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    renpho_email: Optional[str] = None
+    renpho_password: Optional[str] = None
+    yazio_email: Optional[str] = None
+    yazio_password: Optional[str] = None
+
+
+@app.get("/api/users")
+async def api_list_users():
+    return {"users": list_users()}
+
+
+@app.get("/api/users/{user_id}")
+async def api_get_user(user_id: str):
+    user = get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@app.post("/api/users")
+async def api_create_user(data: UserCreate):
+    user = create_user(
+        data.id, data.name,
+        data.renpho_email, data.renpho_password,
+        data.yazio_email, data.yazio_password,
+    )
+    return user
+
+
+@app.put("/api/users/{user_id}")
+async def api_update_user(user_id: str, data: UserUpdate):
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    user = update_user(user_id, update_data)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@app.delete("/api/users/{user_id}")
+async def api_delete_user(user_id: str):
+    if delete_user(user_id):
+        return {"success": True}
+    raise HTTPException(status_code=404, detail="User not found")
 
 
 @app.get("/api/profile/{user_id}")
