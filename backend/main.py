@@ -492,10 +492,10 @@ async def debug_health(user_id: str = "default"):
     }
 
     data_types_to_try = [
-        ("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"'),
-        ("heart-rate", f'heart_rate.observation_time.physical_time >= "{today}T00:00:00Z"'),
-        ("daily-heart-rate-variability", f'daily_heart_rate_variability.civil_start_time >= "{today}"'),
-        ("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"'),
+        ("daily-resting-heart-rate", f'daily_resting_heart_rate.date >= "{today}"'),
+        ("heart-rate", f'heart_rate.sample_time.physical_time >= "{today}T00:00:00Z"'),
+        ("daily-heart-rate-variability", f'daily_heart_rate_variability.date >= "{today}"'),
+        ("daily-oxygen-saturation", f'daily_oxygen_saturation.date >= "{today}"'),
         ("sleep", f'sleep.interval.civil_end_time >= "{today}"'),
         ("active-zone-minutes", f'active_zone_minutes.interval.civil_start_time >= "{today}"'),
         ("steps", f'steps.interval.civil_start_time >= "{today}"'),

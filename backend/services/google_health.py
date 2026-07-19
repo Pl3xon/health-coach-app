@@ -165,18 +165,18 @@ class GoogleHealthClient:
     def get_resting_heart_rate_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._get_data("daily-resting-heart-rate", f'daily_resting_heart_rate.civil_start_time >= "{today}"')
+        points = self._get_data("daily-resting-heart-rate", f'daily_resting_heart_rate.date >= "{today}"')
         for p in reversed(points):
             rhr = p.get("dailyRestingHeartRate", {})
-            val = rhr.get("bpm", 0)
+            val = rhr.get("bpm", 0) or rhr.get("beatsPerMinute", 0)
             if val > 0:
-                return val
+                return int(val)
         return 0
 
     def get_hrv_today(self) -> float:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._get_data("daily-heart-rate-variability", f'daily_heart_rate_variability.civil_start_time >= "{today}"')
+        points = self._get_data("daily-heart-rate-variability", f'daily_heart_rate_variability.date >= "{today}"')
         for p in reversed(points):
             hrv = p.get("dailyHeartRateVariability", {})
             rmssd = hrv.get("rmssdMilliseconds", 0)
@@ -187,7 +187,7 @@ class GoogleHealthClient:
     def get_spo2_today(self) -> float:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._get_data("daily-oxygen-saturation", f'daily_oxygen_saturation.civil_start_time >= "{today}"')
+        points = self._get_data("daily-oxygen-saturation", f'daily_oxygen_saturation.date >= "{today}"')
         for p in reversed(points):
             spo2 = p.get("dailyOxygenSaturation", {})
             val = spo2.get("percentage", 0)
@@ -228,7 +228,7 @@ class GoogleHealthClient:
     def get_heart_rate_today(self) -> int:
         tz = self._tz()
         today = datetime.now(tz).strftime("%Y-%m-%d")
-        points = self._get_data("heart-rate", f'heart_rate.observation_time.physical_time >= "{today}T00:00:00Z"')
+        points = self._get_data("heart-rate", f'heart_rate.sample_time.physical_time >= "{today}T00:00:00Z"')
         latest = 0
         for p in points:
             hr = p.get("heartRate", {})
@@ -256,7 +256,7 @@ class GoogleHealthClient:
         end_date = now.strftime("%Y-%m-%d")
         start_date = (now - timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
-        steps_points = self._get_data("steps", f'steps.interval.civil_start_time >= "{start_date}"')
+        steps_points = self._get_data("steps", f'steps.interval.start_time >= "{start_date}T00:00:00Z"')
         steps_by_date = {}
         for p in steps_points:
             interval = p.get("steps", {}).get("interval", p.get("interval", {}))
@@ -270,7 +270,7 @@ class GoogleHealthClient:
             d = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
             steps_history.append({"date": d, "value": steps_by_date.get(d, 0)})
 
-        cal_points = self._get_data("active-energy-burned", f'active_energy_burned.interval.civil_start_time >= "{start_date}"')
+        cal_points = self._get_data("active-energy-burned", f'active_energy_burned.interval.start_time >= "{start_date}T00:00:00Z"')
         cal_by_date = {}
         for p in cal_points:
             interval = p.get("activeEnergyBurned", {}).get("interval", p.get("interval", {}))
@@ -285,19 +285,19 @@ class GoogleHealthClient:
             calories_history.append({"date": d, "value": round(cal_by_date.get(d, 0))})
 
         rhr_points = self._get_data("daily-resting-heart-rate",
-            f'daily_resting_heart_rate.civil_start_time >= "{start_date}"')
+            f'daily_resting_heart_rate.date >= "{start_date}"')
         resting_hr_history = self._build_daily_from_points(rhr_points, "dailyRestingHeartRate", "bpm", days, start_date)
 
         hrv_points = self._get_data("daily-heart-rate-variability",
-            f'daily_heart_rate_variability.civil_start_time >= "{start_date}"')
+            f'daily_heart_rate_variability.date >= "{start_date}"')
         hrv_history = self._build_daily_from_points(hrv_points, "dailyHeartRateVariability", "rmssdMilliseconds", days, start_date)
 
         spo2_points = self._get_data("daily-oxygen-saturation",
-            f'daily_oxygen_saturation.civil_start_time >= "{start_date}"')
+            f'daily_oxygen_saturation.date >= "{start_date}"')
         spo2_history = self._build_daily_from_points(spo2_points, "dailyOxygenSaturation", "percentage", days, start_date)
 
         azm_points = self._get_data("active-zone-minutes",
-            f'active_zone_minutes.interval.civil_start_time >= "{start_date}"')
+            f'active_zone_minutes.interval.start_time >= "{start_date}T00:00:00Z"')
         azm_history = []
         azm_by_date = {}
         for p in azm_points:
