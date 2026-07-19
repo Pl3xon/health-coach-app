@@ -5,7 +5,7 @@ from services.storage import list_users
 from services.manager import (
     get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
     get_yazio_client, save_yazio_tokens_for_user,
-    get_google_health_client,
+    get_google_health_client, save_gh_tokens_for_user,
 )
 
 TZ = timezone(timedelta(hours=2))
@@ -59,7 +59,7 @@ async def refresh_all_users():
             if fb and fb.refresh_token:
                 try:
                     if fb.refresh_access_token():
-                        save_gf_tokens_for_user(uid, fb)
+                        save_gh_tokens_for_user(uid, fb)
                         print(f"[Scheduler] {uid}: Google Health Token Refresh OK")
                     else:
                         print(f"[Scheduler] {uid}: Google Health Refresh fehlgeschlagen")

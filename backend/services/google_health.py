@@ -8,12 +8,6 @@ class GoogleHealthClient:
     TOKEN_URL = "https://oauth2.googleapis.com/token"
     WEARABLE_FAMILY = "users/me/dataSourceFamilies/google-wearables"
     SCOPES = [
-        "https://www.googleapis.com/auth/fitness.activity.read",
-        "https://www.googleapis.com/auth/fitness.heart_rate.read",
-        "https://www.googleapis.com/auth/fitness.sleep.read",
-        "https://www.googleapis.com/auth/fitness.body.read",
-        "https://www.googleapis.com/auth/fitness.nutrition.read",
-        "https://www.googleapis.com/auth/fitness.oxygen_saturation.read",
         "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
         "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
         "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
@@ -24,7 +18,7 @@ class GoogleHealthClient:
                  token_expiry: float = 0, user_id: str = None):
         self.client_id = client_id
         self.client_secret = client_secret
-        self.redirect_uri = redirect_uri
+        self.redirect_uri = redirect_uri.replace("/auth/google-fit", "/auth/google-health") if redirect_uri else ""
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.token_expiry = token_expiry

@@ -18,6 +18,7 @@ export default function Vitals() {
   const { currentUser } = useUser()
   const [renphoConnected, setRenphoConnected] = useState(false)
   const [googleFitConnected, setGoogleFitConnected] = useState(false)
+  const [googleHealthConnected, setGoogleHealthConnected] = useState(false)
   const [yazioConnected, setYazioConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [renphoData, setRenphoData] = useState(null)
@@ -32,14 +33,16 @@ export default function Vitals() {
     if (!currentUser) return
     setLoading(true)
     try {
-      const [renphoRes, gfStatus, renphoLatest, yazioRes] = await Promise.all([
+      const [renphoRes, gfStatus, ghStatus, renphoLatest, yazioRes] = await Promise.all([
         api.getRenphoStatus(currentUser.id),
         api.getGoogleFitStatus(currentUser.id),
+        api.getGoogleHealthStatus(currentUser.id),
         api.getRenphoLatest(currentUser.id),
         api.getYazioStatus(currentUser.id)
       ])
       setRenphoConnected(renphoRes.connected)
       setGoogleFitConnected(gfStatus.connected || false)
+      setGoogleHealthConnected(ghStatus.connected || false)
       setYazioConnected(yazioRes.connected || false)
       if (renphoLatest.measurement) setRenphoData(renphoLatest.measurement)
     } catch (error) {
@@ -75,6 +78,21 @@ export default function Vitals() {
         setCallbackError(`Fitbit Callback Fehler: ${err.message}`)
         window.history.replaceState({}, '', '/vitals')
       }).finally(() => setConnecting(false))
+    } else if (code && params.get('gh')) {
+      setConnecting(true)
+      setCallbackError(null)
+      api.googleHealthCallback(code, currentUser.id).then(res => {
+        if (res.success) {
+          window.history.replaceState({}, '', '/vitals')
+          checkConnections()
+        } else {
+          setCallbackError(`Google Health Token-Tausch fehlgeschlagen: ${res.error || 'Unbekannter Fehler'}`)
+          window.history.replaceState({}, '', '/vitals')
+        }
+      }).catch(err => {
+        setCallbackError(`Google Health Callback Fehler: ${err.message}`)
+        window.history.replaceState({}, '', '/vitals')
+      }).finally(() => setConnecting(false))
     } else if (code) {
       setConnecting(true)
       setCallbackError(null)
@@ -103,6 +121,17 @@ export default function Vitals() {
       }
     } catch (error) {
       console.error('Error getting Google Fit URL:', error)
+    }
+  }
+
+  const connectGoogleHealth = async () => {
+    try {
+      const res = await api.getGoogleHealthUrl(currentUser?.id)
+      if (res.url) {
+        window.location.href = res.url
+      }
+    } catch (error) {
+      console.error('Error getting Google Health URL:', error)
     }
   }
 
@@ -165,14 +194,34 @@ export default function Vitals() {
               {googleFitConnected ? <Activity className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Google Fit + Fitbit</h3>
+              <h3 className="font-semibold">Google Fit</h3>
               <p className={`text-sm ${googleFitConnected ? 'text-cyan-400' : 'text-gray-400'}`}>
                 {connecting ? 'Verbinde...' : googleFitConnected ? 'Verbunden' : 'Nicht verbunden'}
               </p>
-              {googleFitConnected && <p className="text-xs text-gray-500 mt-0.5">inkl. HR, SpO2, Schlaf, HRV</p>}
+              {googleFitConnected && <p className="text-xs text-gray-500 mt-0.5">Schritte & Kalorien</p>}
             </div>
             {!googleFitConnected && !connecting && (
               <button onClick={connectGoogleFit} className="btn-primary text-sm px-4 py-2">
+                Verbinden
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className={`glass-card p-5 ${googleHealthConnected ? 'neon-glow' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${googleHealthConnected ? 'bg-gradient-to-br from-cyan-400 to-blue-500' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
+              {googleHealthConnected ? <Heart className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Google Health (Fitbit)</h3>
+              <p className={`text-sm ${googleHealthConnected ? 'text-cyan-400' : 'text-gray-400'}`}>
+                {connecting ? 'Verbinde...' : googleHealthConnected ? 'Verbunden' : 'Nicht verbunden'}
+              </p>
+              {googleHealthConnected && <p className="text-xs text-gray-500 mt-0.5">HR, SpO2, Schlaf, HRV</p>}
+            </div>
+            {!googleHealthConnected && !connecting && (
+              <button onClick={connectGoogleHealth} className="btn-primary text-sm px-4 py-2">
                 Verbinden
               </button>
             )}

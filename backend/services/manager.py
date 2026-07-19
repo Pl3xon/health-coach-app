@@ -1,5 +1,9 @@
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, RENPHO_EMAIL, RENPHO_PASSWORD, YAZIO_EMAIL, YAZIO_PASSWORD
-from services.storage import get_user, get_google_fit_tokens, save_google_fit_tokens, get_yazio_tokens, save_yazio_tokens
+from services.storage import (
+    get_user, get_google_fit_tokens, save_google_fit_tokens,
+    get_yazio_tokens, save_yazio_tokens,
+    get_google_health_tokens, save_google_health_tokens,
+)
 
 
 _repho_clients = {}
@@ -125,7 +129,7 @@ def get_google_health_client(user_id: str):
     cached = _google_health_clients.get(user_id)
     if cached:
         if cached._ensure_token():
-            save_google_fit_tokens(user_id, {
+            save_google_health_tokens(user_id, {
                 "access_token": cached.access_token,
                 "refresh_token": cached.refresh_token,
                 "token_expiry": cached.token_expiry,
@@ -133,7 +137,7 @@ def get_google_health_client(user_id: str):
             return cached
         del _google_health_clients[user_id]
 
-    tokens = get_google_fit_tokens(user_id)
+    tokens = get_google_health_tokens(user_id)
     access_token = tokens.get("access_token") if tokens else None
     refresh_token = tokens.get("refresh_token") if tokens else None
     token_expiry = tokens.get("token_expiry", 0) if tokens else 0
@@ -146,6 +150,14 @@ def get_google_health_client(user_id: str):
     )
     _google_health_clients[user_id] = client
     return client
+
+
+def save_gh_tokens_for_user(user_id: str, client):
+    save_google_health_tokens(user_id, {
+        "access_token": client.access_token,
+        "refresh_token": client.refresh_token,
+        "token_expiry": client.token_expiry,
+    })
 
 
 _gemini_coach = None

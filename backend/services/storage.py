@@ -162,3 +162,14 @@ def save_fitbit_tokens(user_id: str, tokens: dict):
     all_tokens[user_id] = tokens
     save("fitbit_tokens.json", all_tokens)
 
+
+def get_google_health_tokens(user_id: str) -> dict | None:
+    tokens = load("google_health_tokens.json", {})
+    return tokens.get(user_id)
+
+
+def save_google_health_tokens(user_id: str, tokens: dict):
+    all_tokens = load("google_health_tokens.json", {})
+    all_tokens[user_id] = tokens
+    save("google_health_tokens.json", all_tokens)
+

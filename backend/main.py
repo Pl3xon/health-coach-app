@@ -17,7 +17,7 @@ from services.storage import (
 from services.manager import (
     get_renpho_client, get_google_fit_client, save_gf_tokens_for_user,
     get_yazio_client, save_yazio_tokens_for_user,
-    get_google_health_client,
+    get_google_health_client, save_gh_tokens_for_user,
     get_gemini_coach,
 )
 from services.scheduler import start_scheduler, stop_scheduler
@@ -277,6 +277,39 @@ async def google_fit_status(user_id: str = "default"):
     if not gf:
         return {"connected": False}
     return {"connected": gf.is_connected()}
+
+
+@app.get("/api/google-health/url")
+async def google_health_auth_url(user_id: str = "default"):
+    gh = get_google_health_client(user_id)
+    if not gh:
+        return {"url": None, "error": "Google Health nicht initialisiert"}
+    url = gh.get_auth_url()
+    return {"url": url, "user_id": user_id}
+
+
+class GoogleHealthCallback(BaseModel):
+    code: str
+    user_id: str = "default"
+
+
+@app.post("/api/google-health/callback")
+async def google_health_callback(cb: GoogleHealthCallback):
+    gh = get_google_health_client(cb.user_id)
+    if not gh:
+        return {"success": False, "error": "Google Health nicht initialisiert"}
+    result = gh.exchange_code(cb.code)
+    if result.get("success"):
+        save_gh_tokens_for_user(cb.user_id, gh)
+    return result
+
+
+@app.get("/api/google-health/status")
+async def google_health_status(user_id: str = "default"):
+    gh = get_google_health_client(user_id)
+    if not gh:
+        return {"connected": False}
+    return {"connected": gh.is_connected()}
 
 
 @app.get("/api/google-fit/history")

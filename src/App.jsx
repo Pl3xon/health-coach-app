@@ -67,6 +67,29 @@ function FitbitCallbackRedirect() {
   )
 }
 
+function GoogleHealthCallbackRedirect() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    const params = new URLSearchParams()
+    if (code) {
+      params.set('code', code)
+      params.set('gh', '1')
+    }
+    if (error) params.set('error', error)
+    navigate(`/vitals?${params.toString()}`, { replace: true })
+  }, [])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-400">Google Health API wird verbunden...</p>
+    </div>
+  )
+}
+
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { logout, currentUser } = useUser()
@@ -209,6 +232,7 @@ function App() {
         <Routes>
           <Route path="/auth/google-fit" element={<GoogleFitCallbackRedirect />} />
           <Route path="/auth/fitbit" element={<FitbitCallbackRedirect />} />
+          <Route path="/auth/google-health" element={<GoogleHealthCallbackRedirect />} />
           <Route path="*" element={<AppContent />} />
         </Routes>
       </UserProvider>

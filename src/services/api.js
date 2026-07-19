@@ -84,6 +84,15 @@ export const api = {
   getFitbitHistory: (userId = 'default', days = 30) =>
     apiCall(`/api/fitbit/history?user_id=${userId}&days=${days}`),
 
+  getGoogleHealthUrl: (userId = 'default') =>
+    apiCall(`/api/google-health/url?user_id=${userId}`),
+
+  googleHealthCallback: (code, userId = 'default') =>
+    apiCall('/api/google-health/callback', { method: 'POST', body: JSON.stringify({ code, user_id: userId }) }),
+
+  getGoogleHealthStatus: (userId = 'default') =>
+    apiCall(`/api/google-health/status?user_id=${userId}`),
+
   listUsers: () =>
     apiCall('/api/users'),
 
